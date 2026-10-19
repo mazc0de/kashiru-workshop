@@ -1,0 +1,271 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+/*
+ * Token desain Kashiru. Gaya taste-skill "achromatic-ledger" (seed 640919988, .taste-skill/app/direction.json)
+ * disesuaikan dengan PRD 6:
+ * - chrome tanpa warna; satu aksen oranye industri hanya untuk data, fokus keyboard, dan satu kontrol;
+ * - tombol utama hampir hitam;
+ * - satu radius 6px untuk kartu, input, dan tombol;
+ * - teks minimal 14px, target sentuh minimal 44px;
+ * - terang dan gelap mengikuti sistem, memakai off-white dan off-black.
+ * Wajah produk: lantai bengkel. Dasar layar abu batu hangat (#f3f2ef), kartu hampir putih.
+ */
+
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: "Geist Variable", system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-rule: var(--rule);
+  --color-active: var(--active);
+  --color-brand: var(--brand);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-pill-positive: var(--pill-positive-bg);
+  --color-pill-positive-ink: var(--pill-positive-ink);
+  --color-pill-negative: var(--pill-negative-bg);
+  --color-pill-negative-ink: var(--pill-negative-ink);
+  --color-pill-warning: var(--pill-warning-bg);
+  --color-pill-warning-ink: var(--pill-warning-ink);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-part: var(--chart-part);
+  --color-chart-service: var(--chart-service);
+
+  /* Satu radius (PRD 6). Chip dan pil kecil boleh 4px. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-xl: 6px;
+  --radius-2xl: 6px;
+  --radius-3xl: 6px;
+  --radius-4xl: 6px;
+}
+
+:root {
+  --radius: 6px;
+
+  --background: #f3f2ef;
+  --foreground: #141414;
+  --card: #fdfdfc;
+  --card-foreground: #141414;
+  --popover: #fdfdfc;
+  --popover-foreground: #141414;
+  /* Tombol utama hampir hitam, sekunder pil abu. */
+  --primary: #1c1c1b;
+  --primary-foreground: #fafaf9;
+  --secondary: #e6e5e1;
+  --secondary-foreground: #141414;
+  --muted: #ebeae6;
+  /* Abu teks sekunder: kontras >= 4.5:1 di atas dasar dan kartu. */
+  --muted-foreground: #5f5e5a;
+  --accent: #e9e8e4;
+  --accent-foreground: #141414;
+  --destructive: #c4242a;
+  --border: #e2e1dd;
+  --rule: #ecebe8;
+  --input: #cfcec9;
+  --active: #e6e5e1;
+  /* Oranye industri: aksen satu-satunya, untuk data, fokus keyboard, dan satu kontrol. */
+  --brand: #c2410c;
+  --ring: #c2410c;
+
+  --positive: #247b50;
+  --negative: #c4242a;
+  --pill-positive-bg: #dcfae5;
+  --pill-positive-ink: #04250e;
+  --pill-negative-bg: #ffedea;
+  --pill-negative-ink: #831c1e;
+  --pill-warning-bg: #fef6d6;
+  --pill-warning-ink: #7a3a06;
+
+  --chart-1: #c2410c;
+  --chart-2: #141414;
+  --chart-3: #8a8985;
+  --chart-4: #b9b8b3;
+  --chart-5: #5f5e5a;
+  /* Grafik omzet part/jasa (dataviz, validate_palette): dua langkah dari hue aksen yang sama.
+     Jasa di bawah 3:1 terhadap kartu, jadi grafik selalu berlegenda, bertooltip, dan punya tampilan tabel. */
+  --chart-part: #c2410c;
+  --chart-service: #f2884b;
+
+  --sidebar: #f3f2ef;
+  --sidebar-foreground: #141414;
+  --sidebar-primary: #1c1c1b;
+  --sidebar-primary-foreground: #fafaf9;
+  --sidebar-accent: #e6e5e1;
+  --sidebar-accent-foreground: #141414;
+  --sidebar-border: #e2e1dd;
+  --sidebar-ring: #c2410c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121212;
+    --foreground: #f2f2f0;
+    --card: #1a1a19;
+    --card-foreground: #f2f2f0;
+    --popover: #1f1f1e;
+    --popover-foreground: #f2f2f0;
+    /* Di gelap, tombol utama dibalik: terang dengan label gelap. */
+    --primary: #f2f2f0;
+    --primary-foreground: #141414;
+    --secondary: #2a2a29;
+    --secondary-foreground: #f2f2f0;
+    --muted: #222221;
+    --muted-foreground: #a9a9a5;
+    --accent: #262625;
+    --accent-foreground: #f2f2f0;
+    --destructive: #e5566f;
+    --border: #2a2a29;
+    --rule: #222221;
+    --input: #3e3e3c;
+    --active: #2a2a29;
+    --brand: #f2884b;
+    --ring: #f2884b;
+
+    --positive: #3fc07a;
+    --negative: #e5566f;
+    --pill-positive-bg: #172a1d;
+    --pill-positive-ink: #3fc07a;
+    --pill-negative-bg: #2c1a20;
+    --pill-negative-ink: #e5566f;
+    --pill-warning-bg: #2d2412;
+    --pill-warning-ink: #e9b949;
+
+    --chart-1: #f2884b;
+    --chart-2: #f2f2f0;
+    --chart-3: #8a8a86;
+    --chart-4: #4a4a48;
+    --chart-5: #a9a9a5;
+    /* Langkah gelap dipilih sendiri dan lolos semua cek terhadap kartu #1a1a19. */
+    --chart-part: #e07227;
+    --chart-service: #a04f27;
+
+    --sidebar: #121212;
+    --sidebar-foreground: #f2f2f0;
+    --sidebar-primary: #f2f2f0;
+    --sidebar-primary-foreground: #141414;
+    --sidebar-accent: #2a2a29;
+    --sidebar-accent-foreground: #f2f2f0;
+    --sidebar-border: #2a2a29;
+    --sidebar-ring: #f2884b;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/60;
+  }
+  html {
+    @apply font-sans;
+    color-scheme: light dark;
+    /* Angka rata kolom di seluruh aplikasi (PRD 6). */
+    font-variant-numeric: tabular-nums;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 15px;
+    line-height: 22px;
+  }
+}
+
+/* Semua yang bisa diklik memakai kursor tangan; yang nonaktif tidak (revisi UI, 19/10/2026). */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab'],
+  [role='radio'],
+  [role='option'],
+  [role='menuitem'],
+  a[href],
+  select:not(:disabled),
+  summary,
+  label[for],
+  input[type='date']::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+}
+
+/*
+ * Select bawaan browser: panahnya menempel di tepi kanan. Diganti panah sendiri yang berjarak sama dengan
+ * teks di kiri. Sengaja di luar @layer supaya menang atas padding utility (mis. px-3) di setiap select.
+ */
+select:not([multiple]) {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%235f5e5a' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.25rem;
+}
+@media (prefers-color-scheme: dark) {
+  select:not([multiple]) {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a9a9a5' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  }
+}
+
+/* Cetak (PRD 4.10): hanya #print-area yang tampil di kertas; di layar ia tersembunyi. */
+@media screen {
+  #print-area {
+    display: none;
+  }
+}
+@media print {
+  body > *:not(#print-area) {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}
+
+/* Kilatan visual pada baris keranjang yang berubah karena scan (PRD 4.8). */
+@keyframes flash {
+  from {
+    background-color: color-mix(in oklch, var(--brand) 22%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+@utility animate-flash {
+  animation: flash 900ms ease-out;
+}

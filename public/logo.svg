@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Tanda Kashiru: mur segi enam, benda paling umum di bengkel. -->
+  <path fill="#c2410c" fill-rule="evenodd" stroke="#c2410c" stroke-width="4" stroke-linejoin="round"
+    d="M32 6 L54.5 19 L54.5 45 L32 58 L9.5 45 L9.5 19 Z M32 21.5 A10.5 10.5 0 1 0 32 42.5 A10.5 10.5 0 1 0 32 21.5 Z" />
+</svg>
