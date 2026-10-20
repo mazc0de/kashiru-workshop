@@ -444,7 +444,7 @@ export type Database = {
           jumlah: number
           merek_snapshot: string | null
           nama_snapshot: string
-          product_id: string
+          product_id: string | null
           qty: number
           sale_id: string
           tipe: string
@@ -461,7 +461,7 @@ export type Database = {
           jumlah: number
           merek_snapshot?: string | null
           nama_snapshot: string
-          product_id: string
+          product_id?: string | null
           qty: number
           sale_id: string
           tipe: string
@@ -478,7 +478,7 @@ export type Database = {
           jumlah?: number
           merek_snapshot?: string | null
           nama_snapshot?: string
-          product_id?: string
+          product_id?: string | null
           qty?: number
           sale_id?: string
           tipe?: string
@@ -943,6 +943,7 @@ export type Database = {
           hpp: number | null
           mechanic_id: string | null
           metode_bayar: string | null
+          nama_snapshot: string | null
           omzet: number | null
           product_id: string | null
           qty: number | null

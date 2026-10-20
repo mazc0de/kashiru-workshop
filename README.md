@@ -30,9 +30,10 @@ Satu instalasi untuk satu bengkel: satu project Supabase dan satu alamat aplikas
 
 | Menu | Isi |
 | --- | --- |
-| **Kasir** | Scan barcode atau cari produk, **Katalog** per kategori (F3), qty dengan tombol − / +, diskon per baris diketik langsung di tabel (rupiah atau %), diskon nota, tahan keranjang, bayar Tunai/QRIS/Transfer/EDC, cetak struk. Semua aksi punya pintasan keyboard (F2–F12). Tetap jalan saat offline |
+| **Kasir** | Scan barcode atau cari produk, **Katalog** part per kategori (F3), **Jasa** (F10) dengan daftar jasa dan isian jasa manual, qty dengan tombol − / +, diskon per baris diketik langsung di tabel (rupiah atau %), diskon nota, tahan keranjang, bayar Tunai/QRIS/Transfer/EDC, cetak struk. Semua aksi punya pintasan keyboard (F2–F12). Tetap jalan saat offline |
 | **Riwayat nota** | Cari per tanggal, nomor, nopol, atau pelanggan; cetak ulang (SALINAN); void nota; cetak ringkasan harian; daftar nota yang belum terkirim |
-| **Produk** | Part dan jasa, banyak barcode dan kode part per part, barcode internal + cetak label, stok awal, "Simpan & berikutnya" untuk input cepat dengan scanner |
+| **Produk** | Part: banyak barcode dan kode part per part, barcode internal + cetak label, stok awal, "Simpan & berikutnya" untuk input cepat dengan scanner |
+| **Jasa** | Daftar jasa dan tarif default-nya. Jasa yang belum terdaftar bisa diketik manual di kasir, hanya tercatat di nota |
 | **Label barcode** | Daftar semua barcode internal part aktif, cari/filter kategori, centang banyak part dengan jumlah label masing-masing, cetak sekaligus dalam satu gulungan |
 | **Stok** | Status Aman/Menipis/Habis/Minus, saran belanja (cetak/Excel), kartu stok per part, penyesuaian stok dengan alasan |
 | **Penerimaan** | Barang masuk: tanggal, cari/scan barang, qty, harga beli (otomatis terisi harga terakhir), barang bonus Rp 0, void penerimaan |
@@ -85,6 +86,7 @@ npm install
    | 7 | `supabase/migrations/20261019000007_reports.sql` | Laporan dan dashboard |
    | 8 | `supabase/migrations/20261019000008_backup_logs.sql` | Catatan backup |
    | 9 | `supabase/migrations/20261019000009_any_device_sales.sql` | Semua laptop bisa membuat nota |
+   | 10 | `supabase/migrations/20261020000010_manual_services.sql` | Jasa manual di kasir |
 
    File migrasi yang sudah dijalankan **tidak pernah diubah**. Perubahan skema berikutnya selalu berupa file baru.
 

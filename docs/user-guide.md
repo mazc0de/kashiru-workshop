@@ -17,8 +17,9 @@ Laptop mana pun bisa dipakai sebagai kasir; nota mencatat akun yang sedang masuk
 | Tombol | Fungsi |
 | --- | --- |
 | F2 | Ke kolom cari |
-| F3 | Katalog: pilih produk dari kotak-kotak per kategori; klik kotak atau + menambah 1, − mengurangi 1 (di qty 1, barang keluar dari keranjang) |
+| F3 | Katalog: pilih part dari kotak-kotak per kategori; klik kotak atau + menambah 1, − mengurangi 1 (di qty 1, barang keluar dari keranjang) |
 | F4 | Nopol, pelanggan, mekanik, catatan servis |
+| F10 | Jasa: pilih jasa dari kotak-kotak seperti Katalog, atau ketik **jasa manual** (nama + tarif) untuk jasa yang belum ada di menu Jasa |
 | F6 | Tahan keranjang, atau buka keranjang yang ditahan |
 | F7 | Ubah qty baris terpilih (mis. 1,5 liter) |
 | F8 / Shift+F8 | Ke isian diskon baris yang dipilih / diskon nota |
@@ -26,6 +27,8 @@ Laptop mana pun bisa dipakai sebagai kasir; nota mencatat akun yang sedang masuk
 | F12 | Cetak ulang struk terakhir |
 | ↑ ↓, +, −, Delete | Pilih baris, tambah/kurangi qty, hapus baris (saat kolom cari kosong). Kolom Qty di keranjang juga punya tombol − dan + |
 | Esc | Kosongkan keranjang |
+
+**Jasa manual** hanya tercatat di nota itu dan tidak masuk menu Jasa. Tarifnya boleh Rp 0, dan bisa diubah lagi di keranjang seperti jasa lain. Di laporan, jasa manual masuk omzet jasa dengan kategori "Jasa manual". Kalau jasa yang sama sering dipakai, tambahkan saja di menu Jasa.
 
 **Diskon per barang** diketik langsung di kolom Diskon: `2000` berarti Rp 2.000 untuk baris itu, `10%` berarti 10 persen, kosongkan untuk menghapus. Tekan Enter untuk menerapkan, Esc untuk membatalkan. Kalau isiannya salah, muncul pesan merah dan diskon lama tetap berlaku. Kalau harganya jadi di bawah harga beli, baris diberi tanda kuning.
 
@@ -48,7 +51,7 @@ Kalau scan tidak masuk ke keranjang, buka Pengaturan → **Scanner** dan coba **
 
 ## Produk
 
-- Tambah part atau jasa dari menu Produk. Part bisa punya beberapa barcode dan kode part. Part tanpa barcode pabrik bisa dibuatkan **barcode internal** lalu dicetak labelnya.
+- Tambah part dari menu Produk, dan jasa dari menu **Jasa**. Part bisa punya beberapa barcode dan kode part. Part tanpa barcode pabrik bisa dibuatkan **barcode internal** lalu dicetak labelnya.
 - Produk tidak pernah dihapus; nonaktifkan kalau tidak dijual lagi.
 - Menu **Label barcode** menampilkan semua barcode internal part aktif. Centang part yang labelnya mau ditempel, isi jumlah label per part, lalu **Cetak**. Semua label keluar dalam satu gulungan dan kertas dipotong sekali di akhir.
 

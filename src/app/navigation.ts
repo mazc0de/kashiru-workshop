@@ -10,6 +10,7 @@ import {
   ScanBarcode,
   Settings,
   Truck,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -38,6 +39,7 @@ export const NAVIGATION: NavGroup[] = [
     label: 'Stok',
     screen: [
       { path: '/products', title: 'Produk', icon: Package, laptopOnly: true, phase: 4 },
+      { path: '/services', title: 'Jasa', icon: Wrench, laptopOnly: true, phase: 4 },
       { path: '/barcode-labels', title: 'Label barcode', icon: Barcode, laptopOnly: true, phase: 4 },
       { path: '/stock', title: 'Stok', icon: Boxes, laptopOnly: false, phase: 6 },
       { path: '/receiving', title: 'Penerimaan', icon: Truck, laptopOnly: true, phase: 6 },
@@ -64,5 +66,5 @@ export const SETTINGS: Screen = {
 export const ALL_SCREENS: Screen[] = [...NAVIGATION.flatMap((g) => g.screen), SETTINGS]
 
 /** Layar yang sudah punya rute sendiri; sisanya masih berupa kerangka sampai fasenya dibangun. */
-const BUILT_SCREENS = new Set(['/dashboard', '/pos', '/sales', '/products', '/barcode-labels', '/stock', '/receiving', '/stocktake', '/reports', '/history', '/settings'])
+const BUILT_SCREENS = new Set(['/dashboard', '/pos', '/sales', '/products', '/services', '/barcode-labels', '/stock', '/receiving', '/stocktake', '/reports', '/history', '/settings'])
 export const SKELETON_SCREENS: Screen[] = NAVIGATION.flatMap((g) => g.screen).filter((l) => !BUILT_SCREENS.has(l.path))

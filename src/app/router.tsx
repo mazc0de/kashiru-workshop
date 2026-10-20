@@ -92,14 +92,35 @@ export const router = createBrowserRouter([
         path: '/products/new',
         lazy: async () => {
           const { ProductFormPage } = await import('@/products/ProductFormPage')
-          return { element: <LaptopOnly title="Produk baru"><ProductFormPage /></LaptopOnly> }
+          return { element: <LaptopOnly title="Produk baru"><ProductFormPage key="part" type="part" /></LaptopOnly> }
         },
       },
       {
         path: '/products/:id',
         lazy: async () => {
           const { ProductFormPage } = await import('@/products/ProductFormPage')
-          return { element: <LaptopOnly title="Produk"><ProductFormPage /></LaptopOnly> }
+          return { element: <LaptopOnly title="Produk"><ProductFormPage key="part" type="part" /></LaptopOnly> }
+        },
+      },
+      {
+        path: '/services',
+        lazy: async () => {
+          const { ServicesPage } = await import('@/products/ServicesPage')
+          return { element: <LaptopOnly title="Jasa"><ServicesPage /></LaptopOnly> }
+        },
+      },
+      {
+        path: '/services/new',
+        lazy: async () => {
+          const { ProductFormPage } = await import('@/products/ProductFormPage')
+          return { element: <LaptopOnly title="Jasa baru"><ProductFormPage key="jasa" type="jasa" /></LaptopOnly> }
+        },
+      },
+      {
+        path: '/services/:id',
+        lazy: async () => {
+          const { ProductFormPage } = await import('@/products/ProductFormPage')
+          return { element: <LaptopOnly title="Jasa"><ProductFormPage key="jasa" type="jasa" /></LaptopOnly> }
         },
       },
       {

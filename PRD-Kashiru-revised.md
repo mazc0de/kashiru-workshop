@@ -82,6 +82,8 @@ Detail keputusan ada di [ADR 0006](./docs/adr/0006-email-login-without-sending-e
 
 Produk terdiri dari **Part** (punya stok) dan **Jasa** (tanpa stok). Kashiru tidak memakai SKU. Produk dikenali dari nama, merek, dan barcode-nya.
 
+Part dikelola di menu **Produk**, jasa di menu **Jasa** (masing-masing dengan daftar dan form sendiri). Jasa yang belum terdaftar tidak perlu ditambahkan dulu: kasir bisa mengetiknya sebagai jasa manual (4.6).
+
 | Data | Part | Jasa |
 | --- | --- | --- |
 | Nama | Wajib | Wajib |
@@ -174,6 +176,7 @@ Opname dilakukan per sesi dengan alur hitung → tinjau → konfirmasi. Stok sis
 Layar kasir dirancang untuk keyboard + scanner, tanpa perlu mouse. Alur bengkel: kendaraan masuk, diservis, lalu semua part dan jasa dicatat di kasir sekaligus saat pelanggan membayar.
 
 - **Keranjang** berisi baris part (punya stok) dan baris jasa (tanpa stok).
+- **Jasa manual**: jendela Jasa (F10, tombol di kanan Katalog) punya isian nama jasa dan tarif untuk jasa yang belum ada di menu Jasa. Jasa manual hanya tercatat di baris nota (tanpa produk, tanpa stok, tetap bisa offline), tidak masuk daftar jasa. Nama wajib (maks. 100 huruf), tarif boleh Rp 0. Nama dan tarif yang sama menambah qty barisnya. Di laporan, jasa manual dihitung sebagai omzet jasa dengan kategori "Jasa manual", dan per produk dikelompokkan per nama.
 - **Qty jasa** berupa bilangan bulat ≥ 1, misalnya tambal ban 2 roda. Tombol + / − dan memilih jasa yang sama dari F2 menambah qty, sama seperti part.
 - **Data nota opsional**: nopol, nama pelanggan, satu mekanik untuk seluruh nota, dan catatan servis berikutnya (mis. "Ganti oli berikutnya: 21.000 km"). Semuanya boleh kosong. Mekanik baru bisa dibuat langsung dari isian mekanik ("+ Buat mekanik '…'"), kecuali saat offline.
 - **Nopol**:
@@ -211,8 +214,9 @@ Layar kasir dirancang untuk keyboard + scanner, tanpa perlu mouse. Alur bengkel:
   | Tombol | Aksi |
   | --- | --- |
   | F2 | Cari produk (nama, merek, barcode, atau kode part) |
-  | F3 | Buka **Katalog**: tab kategori dan kotak produk; klik kotak menambah 1 ke keranjang, katalog tetap terbuka sampai Esc atau Selesai (R53). Setiap kotak punya tombol − qty + (R54) |
+  | F3 | Buka **Katalog**: tab kategori dan kotak part; klik kotak menambah 1 ke keranjang, katalog tetap terbuka sampai Esc atau Selesai (R53). Setiap kotak punya tombol − qty + (R54) |
   | F4 | Isi nopol, pelanggan, mekanik, dan catatan servis |
+  | F10 | Buka **Jasa**: tampilan sama dengan Katalog untuk daftar jasa, ditambah isian jasa manual |
   | F6 | Tahan keranjang, atau buka daftar keranjang ditahan kalau keranjang kosong |
   | F8 | Pindah ke isian diskon baris yang dipilih (R55) |
   | Shift+F8 | Diskon nota |

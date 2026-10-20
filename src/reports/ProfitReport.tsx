@@ -58,7 +58,8 @@ export function ProfitReport() {
             title: 'Per produk',
             note: 'Part dan jasa, urut laba kotor terbesar.',
             rows: byProduct.data,
-            rowKey: (p) => p.productId,
+            // Jasa manual tidak punya produk; dikelompokkan per nama.
+            rowKey: (p) => p.productId || `manual:${p.name.toLowerCase()}`,
             empty: 'Belum ada penjualan.',
             limit: 100,
             columns: [

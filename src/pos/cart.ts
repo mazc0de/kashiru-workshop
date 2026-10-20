@@ -5,7 +5,8 @@ import type { LocalProduct } from '@/products/product'
 
 export type CartLine = {
   key: string
-  productId: string
+  /** null untuk jasa manual: nama dan tarif diketik kasir, tidak ada di daftar jasa. */
+  productId: string | null
   type: 'part' | 'jasa'
   name: string
   brand: string | null
@@ -73,6 +74,39 @@ export function addProduct(k: Cart, p: LocalProduct, newKey: string): Cart {
   return { ...k, lines: [...k.lines, lineFromProduct(p, newKey)], selected: k.lines.length }
 }
 
+/**
+ * Jasa manual dari jendela Jasa: nama dan tarif diketik kasir, hanya tercatat di nota. Jasa manual dengan
+ * nama dan tarif yang sama menambah qty barisnya, seperti produk. Nama kosong atau tarif negatif ditolak.
+ */
+export function addManualService(k: Cart, name: string, price: number, newKey: string): Cart | null {
+  const tidy = name.trim().replace(/\s+/g, ' ')
+  if (!tidy || tidy.length > MANUAL_SERVICE_NAME_MAX || !Number.isInteger(price) || price < 0) return null
+  const i = k.lines.findIndex((b) => b.productId === null && b.name.toLowerCase() === tidy.toLowerCase() && b.price === price)
+  if (i >= 0) {
+    const lines = k.lines.map((b, j) => (j === i ? { ...b, qty: b.qty + 1 } : b))
+    return { ...k, lines, selected: i }
+  }
+  const line: CartLine = {
+    key: newKey,
+    productId: null,
+    type: 'jasa',
+    name: tidy,
+    brand: null,
+    unit: null,
+    allowsFraction: false,
+    qty: 1,
+    price,
+    manualPrice: true,
+    discount: null,
+    oldPrice: null,
+    inactive: false,
+  }
+  return { ...k, lines: [...k.lines, line], selected: k.lines.length }
+}
+
+/** Batas nama jasa manual, sama dengan pemeriksaan di checkout_sale. */
+export const MANUAL_SERVICE_NAME_MAX = 100
+
 /** Qty baru untuk baris; pecahan hanya untuk part bisa pecahan, maksimal 2 desimal. null kalau tidak valid. */
 export function changeQty(k: Cart, i: number, qty: number): Cart | null {
   const b = k.lines[i]
@@ -128,16 +162,18 @@ export function toCalcLines(k: Cart): CalcLine[] {
 }
 
 /** Qty part yang sudah ada di keranjang, untuk peringatan stok. */
-export function qtyInCart(k: Cart, productId: string): number {
+export function qtyInCart(k: Cart, productId: string | null): number {
   return k.lines.filter((b) => b.productId === productId).reduce((s, b) => s + b.qty, 0)
 }
 
 /**
  * Saat keranjang ditahan dibuka lagi (PRD 4.6): harga part diperbarui ke harga terbaru di master dan
- * barisnya ditandai; harga jasa yang sudah diubah manual tidak ikut; produk nonaktif ditandai.
+ * barisnya ditandai; harga jasa yang sudah diubah manual tidak ikut; produk nonaktif ditandai. Jasa manual
+ * tidak punya produk, jadi dibiarkan apa adanya.
  */
 export function refreshPrices(k: Cart, copies: Map<string, LocalProduct>): Cart {
   const lines = k.lines.map((b) => {
+    if (b.productId === null) return b
     const p = copies.get(b.productId)
     if (!p || !p.active) return { ...b, inactive: true, oldPrice: null }
     if (b.manualPrice || p.sellingPrice === b.price) return { ...b, inactive: false, oldPrice: null }

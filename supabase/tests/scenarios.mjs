@@ -796,6 +796,55 @@ scenario('laporan penjualan: omzet setelah diskon, part/jasa terpisah, void tida
   assert.equal(yesterday.nota, 0)
 })
 
+scenario('jasa manual: tercatat di nota tanpa produk, tanpa stok, dan masuk laporan sebagai Jasa manual', async (db) => {
+  await registerDevice(db)
+  const cat = await createCategory(db, 'Oli')
+  const oil = await createPart(db, { name: 'Oli MPX', category: cat, price: 50000, stock: 5, cost: 40000 })
+  const movementsBefore = num((await db.query('select count(*) from stock_movements')).rows[0].count)
+  const sale = await checkout(
+    db,
+    [
+      { product_id: oil, qty: 1, harga: 50000 },
+      { product_id: null, nama: '  Las  knalpot ', qty: 2, harga: 15000, diskon_jenis: 'nominal', diskon_input: 5000 },
+      { product_id: null, nama: 'Cuci motor', qty: 1, harga: 0 },
+    ],
+    { total: 75000 },
+  )
+  const lines = (await db.query('select product_id, nama_snapshot, merek_snapshot, tipe, qty, jumlah, diskon, hpp_satuan from sale_items where sale_id = $1 order by urutan', [sale.id])).rows
+  assert.deepEqual(
+    lines.slice(1).map((r) => [r.product_id, r.nama_snapshot, r.merek_snapshot, r.tipe, num(r.qty), num(r.jumlah), num(r.diskon), r.hpp_satuan]),
+    [
+      [null, 'Las knalpot', null, 'jasa', 2, 30000, 5000, null],
+      [null, 'Cuci motor', null, 'jasa', 1, 0, 0, null],
+    ],
+  )
+  // Hanya part yang membuat mutasi stok.
+  assert.equal(num((await db.query('select count(*) from stock_movements')).rows[0].count), movementsBefore + 1)
+  await checkout(db, [{ product_id: null, nama: 'LAS KNALPOT', qty: 1, harga: 20000 }], { total: 20000 })
+
+  const [s] = await report(db, cashier, 'report_sales_summary', [TODAY_ISO, TODAY_ISO])
+  assert.deepEqual([num(s.omzet_part), num(s.omzet_jasa)], [50000, 45000])
+  const category = await report(db, cashier, 'report_sales_by_category', [TODAY_ISO, TODAY_ISO])
+  assert.deepEqual(category.map((r) => [r.category_id === null, r.kategori, num(r.omzet)]), [[false, 'Oli', 50000], [true, 'Jasa manual', 45000]])
+  const product = await report(db, cashier, 'report_sales_by_product', [TODAY_ISO, TODAY_ISO])
+  assert.deepEqual(product.map((r) => [r.product_id === null, r.tipe, r.kategori, num(r.qty), num(r.omzet), num(r.hpp)]), [
+    [true, 'jasa', 'Jasa manual', 3, 45000, 0],
+    [false, 'part', 'Oli', 1, 50000, 40000],
+    [true, 'jasa', 'Jasa manual', 1, 0, 0],
+  ])
+})
+
+scenario('jasa manual wajib bernama, qty bulat, dan tidak bisa langsung ditulis sebagai part tanpa produk', async (db) => {
+  await registerDevice(db)
+  await expectFailure(checkout(db, [{ product_id: null, nama: '   ', qty: 1, harga: 10000 }], { total: 10000 }), /Nama jasa manual di baris 1 kosong/)
+  await expectFailure(checkout(db, [{ product_id: null, qty: 1, harga: 10000 }], { total: 10000 }), /Nama jasa manual/)
+  await expectFailure(checkout(db, [{ product_id: null, nama: 'x'.repeat(101), qty: 1, harga: 10000 }], { total: 10000 }), /lebih dari 100 huruf/)
+  await expectFailure(checkout(db, [{ product_id: null, nama: 'Las', qty: 1.5, harga: 10000 }], { total: 15000 }))
+  await expectFailure(checkout(db, [{ product_id: null, nama: 'Las', qty: 1, harga: -1 }], { total: -1 }), /Harga Las tidak valid/)
+  const sale = await checkout(db, [{ product_id: null, nama: 'Las', qty: 1, harga: 10000 }], { total: 10000 })
+  await expectFailure(db.query("update sale_items set tipe = 'part', hpp_satuan = 0 where sale_id = $1", [sale.id]), /jasa_manual/)
+})
+
 scenario('laporan jasa per mekanik, dengan baris tanpa mekanik', async (db) => {
   await salesSetup(db)
   const rows = await report(db, cashier, 'report_services_by_mechanic', [TODAY_ISO, TODAY_ISO])

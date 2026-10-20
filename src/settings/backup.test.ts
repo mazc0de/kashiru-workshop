@@ -82,6 +82,11 @@ test('data yang dibaca utuh lolos pemeriksaan', () => {
   expect(findInconsistency(dump(CONSISTENT))).toBeNull()
 })
 
+test('baris nota jasa manual tanpa produk tetap dianggap utuh', () => {
+  const manual = { ...CONSISTENT, sale_items: [...CONSISTENT.sale_items, { id: 'i2', sale_id: 's1', product_id: null }] }
+  expect(findInconsistency(dump(manual))).toBeNull()
+})
+
 test('transaksi yang tersimpan di tengah pembacaan terdeteksi', () => {
   expect(findInconsistency(dump({ ...CONSISTENT, sales: [] }))).toBe('sale_items tanpa sales')
   expect(findInconsistency(dump({ ...CONSISTENT, sale_items: [] }))).toBe('sales tanpa sale_items')

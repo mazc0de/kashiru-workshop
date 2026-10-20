@@ -21,8 +21,8 @@ import { searchProducts, type LocalProduct } from '@/products/product'
 type FilterStatus = 'active' | 'inactive' | 'all'
 
 /**
- * Daftar produk (PRD 4.2). Scan barcode membuka produknya; barcode yang belum dikenal
- * menawarkan "Daftarkan produk baru" atau "Tautkan ke produk yang ada" (PRD 4.8).
+ * Daftar produk (PRD 4.2), khusus part; jasa ada di menu Jasa. Scan barcode membuka produknya; barcode yang
+ * belum dikenal menawarkan "Daftarkan produk baru" atau "Tautkan ke produk yang ada" (PRD 4.8).
  */
 const PAGE_SIZE = 50
 
@@ -36,7 +36,7 @@ export function ProductsPage() {
   const [status, setStatus] = useState<FilterStatus>('active')
   const [newBarcode, setNewBarcode] = useState<string | null>(null)
 
-  const all = useMemo(() => list.data ?? [], [list.data])
+  const all = useMemo(() => (list.data ?? []).filter((p) => p.type === 'part'), [list.data])
   const result = useMemo(() => {
     const found = searchProducts(all, query, { categoryId: categoryId || null, includeInactive: status !== 'active' })
     return status === 'inactive' ? found.filter((p) => !p.active) : found
@@ -57,9 +57,7 @@ export function ProductsPage() {
     }
   }, newBarcode === null)
 
-  const active = all.filter((p) => p.active)
-  const partTotal = active.filter((p) => p.type === 'part').length
-  const serviceTotal = active.length - partTotal
+  const partTotal = all.filter((p) => p.active).length
 
   return (
     <>
@@ -68,7 +66,7 @@ export function ProductsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Produk</h1>
           <p className="mt-1 text-muted-foreground">
             {list.isSuccess
-              ? `${partTotal} part dan ${serviceTotal} jasa aktif. Scan barcode untuk membuka atau mendaftarkan part.`
+              ? `${partTotal} part aktif. Scan barcode untuk membuka atau mendaftarkan part. Jasa ada di menu Jasa.`
               : 'Scan barcode untuk membuka atau mendaftarkan part.'}
           </p>
         </div>
@@ -195,7 +193,6 @@ function ProductRow({ product: p }: { product: LocalProduct }) {
         <Link to={`/products/${p.id}`} className={cn('block truncate', !p.active && 'text-muted-foreground')}>
           {p.name}
           {p.brand && <span className="text-muted-foreground"> · {p.brand}</span>}
-          {p.type === 'jasa' && <span className="text-muted-foreground"> · Jasa</span>}
         </Link>
         <span className="block truncate text-sm text-muted-foreground">{note}</span>
       </td>

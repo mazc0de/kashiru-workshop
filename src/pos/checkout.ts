@@ -77,6 +77,8 @@ export function buildCheckoutArgs(o: {
     p_dibuat_pada: o.attempt.createdAt,
     p_items: k.lines.map((b) => ({
       product_id: b.productId,
+      // Jasa manual tidak punya produk; namanya dikirim apa adanya.
+      ...(b.productId === null && { nama: b.name }),
       qty: b.qty,
       harga: b.price,
       diskon_jenis: b.discount?.kind ?? null,
@@ -159,7 +161,7 @@ export async function paySale(options: {
     attemptedAt: null,
     args,
     receipt,
-    stockOut: k.lines.filter((b) => b.type === 'part').map((b) => ({ productId: b.productId, qty: b.qty })),
+    stockOut: k.lines.flatMap((b) => (b.type === 'part' && b.productId ? [{ productId: b.productId, qty: b.qty }] : [])),
   }
   const result = await enqueueAndSend(sale)
   // Ditolak server saat online: alasan tampil di dialog bayar, keranjang tetap utuh (R23).

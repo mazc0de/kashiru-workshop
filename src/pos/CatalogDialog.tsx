@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Minus, Plus, Search, X } from 'lucide-react'
 import { cn } from 'cn'
 
@@ -13,9 +13,14 @@ import { StockStatusPill } from '@/products/StockStatusPill'
 /**
  * Katalog di layar Kasir (R53): tab kategori, kotak produk urut nama, klik kotak menambah 1 ke keranjang
  * (sama seperti scan). Jendela tetap terbuka supaya beberapa barang bisa dipilih; Esc atau Selesai menutupnya.
+ * Jendela Jasa memakai tampilan yang sama untuk daftar jasa, ditambah isian jasa manual di atasnya.
  */
 export function CatalogDialog({
   open,
+  title = 'Katalog',
+  filterPlaceholder = 'Saring nama, merek, kode part',
+  emptyText = 'Belum ada produk di laptop ini.',
+  top,
   products,
   onPick,
   onDecrease,
@@ -24,6 +29,12 @@ export function CatalogDialog({
   cartQty,
 }: {
   open: boolean
+  title?: string
+  filterPlaceholder?: string
+  /** Teks saat belum ada produk sama sekali. */
+  emptyText?: string
+  /** Isi tambahan di bawah judul, mis. isian jasa manual. */
+  top?: ReactNode
   /** Kurangi 1 dari keranjang; di qty 1 barang keluar dari keranjang. */
   onDecrease: (p: LocalProduct) => void
   products: LocalProduct[]
@@ -37,19 +48,39 @@ export function CatalogDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => !next && !blocked && onClose()}>
       <DialogContent showCloseButton={false} className="flex h-[min(760px,calc(100dvh-4rem))] max-w-[calc(100%-4rem)] flex-col gap-4 sm:max-w-[1100px]">
-        {open && <CatalogBody products={products} onPick={onPick} onDecrease={onDecrease} onClose={onClose} cartQty={cartQty} />}
+        {open && (
+          <CatalogBody
+            title={title}
+            filterPlaceholder={filterPlaceholder}
+            emptyText={emptyText}
+            top={top}
+            products={products}
+            onPick={onPick}
+            onDecrease={onDecrease}
+            onClose={onClose}
+            cartQty={cartQty}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )
 }
 
 function CatalogBody({
+  title,
+  filterPlaceholder,
+  emptyText,
+  top,
   products,
   onPick,
   onDecrease,
   onClose,
   cartQty,
 }: {
+  title: string
+  filterPlaceholder: string
+  emptyText: string
+  top: ReactNode
   products: LocalProduct[]
   onPick: (p: LocalProduct) => void
   onDecrease: (p: LocalProduct) => void
@@ -79,16 +110,18 @@ function CatalogBody({
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <DialogTitle className="text-xl font-semibold">Katalog</DialogTitle>
+        <DialogTitle className="text-xl font-semibold">{title}</DialogTitle>
         <div className="relative ml-auto w-[320px] max-w-full">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input aria-label="Saring katalog" placeholder="Saring nama, merek, kode part" className="pl-9" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Input aria-label={`Saring ${title.toLowerCase()}`} placeholder={filterPlaceholder} className="pl-9" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         {/* Tombol tutup sejajar dengan kolom saring (revisi UI). */}
-        <Button variant="ghost" size="icon" aria-label="Tutup katalog" title="Tutup (Esc)" onClick={onClose}>
+        <Button variant="ghost" size="icon" aria-label={`Tutup ${title.toLowerCase()}`} title="Tutup (Esc)" onClick={onClose}>
           <X className="size-5" strokeWidth={1.75} />
         </Button>
       </div>
+
+      {top}
 
       <div role="tablist" aria-label="Kategori" className="flex shrink-0 gap-1 overflow-x-auto border-b border-border">
         {tabs.map((t) => (
@@ -111,7 +144,7 @@ function CatalogBody({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {items.length === 0 ? (
-          <p className="py-6 text-muted-foreground">{products.length === 0 ? 'Belum ada produk di laptop ini.' : 'Tidak ada produk yang cocok.'}</p>
+          <p className="py-6 text-muted-foreground">{products.length === 0 ? emptyText : 'Tidak ada yang cocok dengan saringan ini.'}</p>
         ) : (
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2">
             {items.map((p) => {

@@ -136,7 +136,8 @@ export function findInconsistency(dump: TableDump[]): string | null {
   ]
   for (const [child, column, parent] of parents) {
     const known = ids(parent)
-    if (rows(child).some((r) => !known.has(r[column]))) return `${child} tanpa ${parent}`
+    // Baris nota jasa manual memang tanpa produk (product_id kosong).
+    if (rows(child).some((r) => r[column] !== null && !known.has(r[column]))) return `${child} tanpa ${parent}`
   }
   for (const [parent, child, column] of [
     ['sales', 'sale_items', 'sale_id'],

@@ -5,7 +5,7 @@ import { afterAll, beforeAll, expect, test } from 'vitest'
 // @ts-expect-error modul JS uji database tanpa deklarasi tipe
 import { ACCOUNTS, createSnapshot, freshDb, rpc } from '../../supabase/tests/harness.mjs'
 import { calculateSale, type CalcLine, type Discount } from '@/pos/calculate'
-import { EMPTY_CART, type Cart } from '@/pos/cart'
+import { EMPTY_CART, addManualService, type Cart } from '@/pos/cart'
 import { buildCheckoutArgs } from '@/pos/checkout'
 
 type Db = Awaited<ReturnType<typeof freshDb>>
@@ -95,4 +95,16 @@ test('60 keranjang acak: total dan alokasi diskon sama di perangkat dan server',
     )
   }
   expect(sent).toBeGreaterThan(40)
+}, 60_000)
+
+test('jasa manual dari keranjang diterima server sebagai baris nota tanpa produk', async () => {
+  const cart = addManualService({ ...EMPTY_CART }, 'Las knalpot', 25000, 'm1')!
+  const result = calculateSale(cart.lines, null)
+  const args = buildCheckoutArgs({
+    cart, total: result.total, method: 'qris', cash: result.total, creatorId: ACCOUNTS.cashier, prefix: 'KSR', deviceId: DEVICE,
+    attempt: { clientId: crypto.randomUUID(), sequence: 900, createdAt: new Date().toISOString() },
+  })
+  const sale = (await rpc(db, ACCOUNTS.cashier, 'checkout_sale', Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined)))) as { id: string }
+  const rows = (await db.query(`select product_id, nama_snapshot, tipe, jumlah from sale_items where sale_id = $1`, [sale.id])).rows
+  expect(rows).toEqual([{ product_id: null, nama_snapshot: 'Las knalpot', tipe: 'jasa', jumlah: 25000 }])
 }, 60_000)

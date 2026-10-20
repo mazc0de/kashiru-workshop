@@ -29,6 +29,7 @@ import {
   setServicePrice,
   changeQty,
   decreaseProduct,
+  addManualService,
   type CartLine,
 } from '@/pos/cart'
 import { openHeldCart, holdCart, useCart } from '@/pos/cartStore'
@@ -36,6 +37,7 @@ import { paySale, lastReceipt, type Attempt } from '@/pos/checkout'
 import { CatalogDialog } from '@/pos/CatalogDialog'
 import { discountText, parseLineDiscount } from '@/pos/discountInput'
 import { PaymentDialog } from '@/pos/PaymentDialog'
+import { ServiceDialog } from '@/pos/ServiceDialog'
 import { SaleInfoDialog, DiscountDialog, HeldCartsDialog, ClearCartDialog, QtyDialog, StockDialog } from '@/pos/PosDialogs'
 import { printReceipt } from '@/pos/printReceipt'
 import { findByBarcode, fullName, type LocalProduct } from '@/products/product'
@@ -100,15 +102,22 @@ function PosScreen() {
   const products = useLiveQuery(() => db.products.toArray(), [], [] as LocalProduct[])
   const mechanics = useLiveQuery(listMechanics, [], [])
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products])
+  // Katalog hanya part; jasa dipilih dari jendela Jasa.
+  const parts = useMemo(() => products.filter((p) => p.type === 'part'), [products])
+  const services = useMemo(() => products.filter((p) => p.type === 'jasa'), [products])
+  const productOf = (b: CartLine) => (b.productId === null ? undefined : productMap.get(b.productId))
   const cartQty = useMemo(() => {
     const m = new Map<string, number>()
-    for (const b of cart.lines) m.set(b.productId, (m.get(b.productId) ?? 0) + b.qty)
+    // Jasa manual tidak punya produk; kuncinya baris itu sendiri, supaya tetap terhitung di ringkasan keranjang.
+    for (const b of cart.lines) m.set(b.productId ?? b.key, (m.get(b.productId ?? b.key) ?? 0) + b.qty)
     return m
   }, [cart.lines])
 
   const [dialog, setDialog] = useState<Dialog | null>(null)
   // Katalog (R53) terpisah dari dialog lain, supaya peringatan stok bisa muncul di atasnya.
   const [catalogOpen, setCatalogOpen] = useState(false)
+  const [serviceOpen, setServiceOpen] = useState(false)
+  const pickerOpen = catalogOpen || serviceOpen
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState<{ tone: 'info' | 'error'; text: string } | null>(null)
   const [flash, setFlash] = useState<{ key: string; n: number } | null>(null)
@@ -137,7 +146,7 @@ function PosScreen() {
     proceed()
   }
 
-  const addToCart = (p: LocalProduct, fromCatalog = false) => {
+  const addToCart = (p: LocalProduct, fromPicker = false) => {
     withStockCheck(p, qtyInCart(cart, p.id) + 1, () => {
       const key = newKey()
       update((k) => addProduct(k, p, key))
@@ -146,8 +155,8 @@ function PosScreen() {
       playSuccess()
       setNotice(null)
       setDialog(null)
-      // Dari katalog, jendela katalog tetap terbuka dan fokus tidak dipindah ke kolom cari.
-      if (fromCatalog) return
+      // Dari Katalog atau Jasa, jendelanya tetap terbuka dan fokus tidak dipindah ke kolom cari.
+      if (fromPicker) return
       setQuery('')
       focusSearch()
     })
@@ -156,7 +165,7 @@ function PosScreen() {
   // Scan menambah part ke keranjang; barcode yang sama menambah qty (PRD 4.8).
   useBarcodeScanner((code) => {
     const p = findByBarcode(products, code)
-    if (p) addToCart(p, catalogOpen)
+    if (p) addToCart(p, pickerOpen)
     else {
       playError()
       setDialog({ kind: 'barcode', code })
@@ -182,7 +191,7 @@ function PosScreen() {
   // Pintasan keyboard (PRD 4.6). Tombol navigasi keranjang hanya berlaku saat kolom cari kosong.
   useEffect(() => {
     const press = (e: KeyboardEvent) => {
-      if (dialog !== null || catalogOpen || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
+      if (dialog !== null || pickerOpen || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
       const k = useCart.getState()
       const hasLines = k.lines.length > 0
       switch (e.key) {
@@ -197,6 +206,10 @@ function PosScreen() {
         case 'F4':
           e.preventDefault()
           setDialog({ kind: 'data' })
+          return
+        case 'F10':
+          e.preventDefault()
+          setServiceOpen(true)
           return
         case 'F6':
           e.preventDefault()
@@ -236,7 +249,7 @@ function PosScreen() {
           if (!b) return
           e.preventDefault()
           if (e.key === '-') update((x) => stepQty(x, x.selected, -1))
-          else withStockCheck(productMap.get(b.productId), qtyInCart(k, b.productId) + 1, () => update((x) => stepQty(x, x.selected, 1)))
+          else withStockCheck(productOf(b), qtyInCart(k, b.productId) + 1, () => update((x) => stepQty(x, x.selected, 1)))
           return
         case 'Delete':
           if (!b) return
@@ -290,12 +303,15 @@ function PosScreen() {
             setQuery={setQuery}
             products={products}
             onPick={addToCart}
-            disabled={dialog !== null || catalogOpen}
+            disabled={dialog !== null || pickerOpen}
             placeholder="Scan barcode, atau ketik nama, merek, kode part (F2)"
             className="min-w-0 flex-1"
           />
           <Button variant="outline" className="h-12 shrink-0" onClick={() => setCatalogOpen(true)}>
             Katalog <span className="text-muted-foreground">F3</span>
+          </Button>
+          <Button variant="outline" className="h-12 shrink-0" onClick={() => setServiceOpen(true)}>
+            Jasa <span className="text-muted-foreground">F10</span>
           </Button>
         </div>
         <EmptyLocalCopyNotice online={online} />
@@ -312,14 +328,14 @@ function PosScreen() {
           editPrice={(i, price) => update((k) => setServicePrice(k, i, price))}
           remove={(i) => update((k) => removeLine(k, i))}
           finishPriceEdit={focusSearch}
-          lineCosts={cart.lines.map((b) => lineCogs(b, productMap.get(b.productId)?.avgCost))}
+          lineCosts={cart.lines.map((b) => lineCogs(b, productOf(b)?.avgCost))}
           setDiscount={(i, d) => update((k) => setLineDiscount({ ...k, selected: i }, i, d))}
           stepUp={(i) => {
             const k = useCart.getState()
             const b = k.lines[i]
             if (!b) return
             update((x) => ({ ...x, selected: i }))
-            withStockCheck(productMap.get(b.productId), qtyInCart(k, b.productId) + 1, () => update((x) => stepQty(x, i, 1)))
+            withStockCheck(productOf(b), qtyInCart(k, b.productId) + 1, () => update((x) => stepQty(x, i, 1)))
             focusSearch()
           }}
           stepDown={(i) => {
@@ -347,7 +363,7 @@ function PosScreen() {
           {dialog?.kind === 'qty' && selected && (
             <QtyDialog
               lines={selected}
-              stock={selected.type === 'part' ? (productMap.get(selected.productId)?.stock ?? null) : null}
+              stock={selected.type === 'part' ? (productOf(selected)?.stock ?? null) : null}
               cancel={closeDialog}
               save={(qty) => {
                 update((k) => changeQty(k, k.selected, qty) ?? k)
@@ -425,13 +441,34 @@ function PosScreen() {
 
       <CatalogDialog
         open={catalogOpen}
-        products={products}
+        products={parts}
         onPick={(p) => addToCart(p, true)}
         onDecrease={(p) => update((k) => decreaseProduct(k, p.id))}
         cartQty={cartQty}
         blocked={dialog !== null}
         onClose={() => {
           setCatalogOpen(false)
+          focusSearch()
+        }}
+      />
+
+      <ServiceDialog
+        open={serviceOpen}
+        services={services}
+        onPick={(p) => addToCart(p, true)}
+        onDecrease={(p) => update((k) => decreaseProduct(k, p.id))}
+        onManual={(name, price) => {
+          const key = newKey()
+          update((k) => addManualService(k, name, price, key) ?? k)
+          const onSaved = useCart.getState()
+          setFlash({ key: onSaved.lines[onSaved.selected]?.key ?? key, n: Date.now() })
+          playSuccess()
+          setNotice(null)
+        }}
+        cartQty={cartQty}
+        blocked={dialog !== null}
+        onClose={() => {
+          setServiceOpen(false)
           focusSearch()
         }}
       />
@@ -475,7 +512,7 @@ function CartTable({
   if (lines.length === 0) {
     return (
       <div className="mt-4 flex flex-1 items-start rounded-md border border-dashed border-input p-6 text-muted-foreground">
-        Keranjang kosong. Scan barcode part, atau cari part dan jasa di kolom atas. Keranjang yang ditahan dibuka dengan F6.
+        Keranjang kosong. Scan barcode part, cari part dan jasa di kolom atas, atau buka Katalog (F3) dan Jasa (F10). Keranjang yang ditahan dibuka dengan F6.
       </div>
     )
   }
@@ -509,7 +546,7 @@ function CartTable({
                 <td className="px-2 py-2 text-right align-top text-muted-foreground">{i + 1}</td>
                 <td className="px-2 py-2 align-top">
                   <span className={cn('block', b.inactive && 'text-muted-foreground line-through')}>{fullName(b)}</span>
-                  <span className="block text-sm text-muted-foreground">{b.type === 'jasa' ? 'Jasa' : b.unit}</span>
+                  <span className="block text-sm text-muted-foreground">{b.type === 'part' ? b.unit : b.productId === null ? 'Jasa manual' : 'Jasa'}</span>
                   {b.oldPrice !== null && (
                     <span className="block text-sm text-pill-warning-ink">
                       Harga berubah: {formatRupiah(b.oldPrice)} → {formatRupiah(b.price)}

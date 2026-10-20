@@ -1,8 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, X } from 'lucide-react'
-import { cn } from 'cn'
 
 import { Field } from '@/components/Field'
 import { Notice } from '@/components/Notice'
@@ -41,18 +40,25 @@ import {
   type FormErrors,
 } from '@/products/productForm'
 import { LabelSheet } from '@/products/BarcodeLabel'
-import { fullName } from '@/products/product'
+import { fullName, type ProductType } from '@/products/product'
 
-/** /produk/baru dan /produk/:id */
-export function ProductFormPage() {
+/** Menu Produk berisi part, menu Jasa berisi jasa. Keduanya memakai form yang sama. */
+const PAGES: Record<ProductType, { path: string; menu: string; noun: string }> = {
+  part: { path: '/products', menu: 'Produk', noun: 'produk' },
+  jasa: { path: '/services', menu: 'Jasa', noun: 'jasa' },
+}
+
+/** /products/new dan /products/:id untuk part; /services/new dan /services/:id untuk jasa. */
+export function ProductFormPage({ type }: { type: ProductType }) {
   const { id } = useParams()
   const detail = useProductDetail(id ?? null)
-  if (!id) return <ProductForm key="baru" existing={null} />
-  if (detail.isPending) return <FormTitle title="Memuat produk…" />
+  const page = PAGES[type]
+  if (!id) return <ProductForm key={`baru-${type}`} existing={null} type={type} />
+  if (detail.isPending) return <FormTitle type={type} title={`Memuat ${page.noun}…`} />
   if (detail.isError) {
     return (
       <>
-        <FormTitle title="Produk tidak bisa dimuat" />
+        <FormTitle type={type} title={`Data ${page.noun} tidak bisa dimuat`} />
         <Notice tone="error" className="mt-6 max-w-[880px]">
           {detail.error.message}{' '}
           <button type="button" className="underline underline-offset-4" onClick={() => void detail.refetch()}>
@@ -62,15 +68,18 @@ export function ProductFormPage() {
       </>
     )
   }
-  return <ProductForm key={`${id}-${detail.dataUpdatedAt}`} existing={detail.data} />
+  // Tautan lama ke jasa lewat /products/:id (atau sebaliknya) diarahkan ke menunya.
+  if (detail.data.type !== type) return <Navigate to={`${PAGES[detail.data.type].path}/${id}`} replace />
+  return <ProductForm key={`${id}-${detail.dataUpdatedAt}`} existing={detail.data} type={type} />
 }
 
-function FormTitle({ title, sublabel, action }: { title: string; sublabel?: ReactNode; action?: ReactNode }) {
+function FormTitle({ type, title, sublabel, action }: { type: ProductType; title: string; sublabel?: ReactNode; action?: ReactNode }) {
+  const page = PAGES[type]
   return (
     <div className="max-w-[880px]">
-      <Link to="/products" className="inline-flex h-11 items-center gap-1.5 text-muted-foreground hover:text-foreground">
+      <Link to={page.path} className="inline-flex h-11 items-center gap-1.5 text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" strokeWidth={1.75} aria-hidden="true" />
-        Produk
+        {page.menu}
       </Link>
       <div className="mt-1 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
@@ -95,8 +104,9 @@ function Section({ title, note, children }: { title: string; note?: string; chil
   )
 }
 
-function ProductForm({ existing }: { existing: ProductDetail | null }) {
+function ProductForm({ existing, type }: { existing: ProductDetail | null; type: ProductType }) {
   const isNew = existing === null
+  const page = PAGES[type]
   const navigate = useNavigate()
   const location = useLocation()
   const queryClient = useQueryClient()
@@ -108,7 +118,7 @@ function ProductForm({ existing }: { existing: ProductDetail | null }) {
   const name = useRef<HTMLInputElement>(null)
 
   const initialBarcode = searchInput.get('barcode')
-  const [values, setValues] = useState<FormFields>(existing ? fieldsFromProduct(existing) : EMPTY_FIELDS)
+  const [values, setValues] = useState<FormFields>(existing ? fieldsFromProduct(existing) : { ...EMPTY_FIELDS, type })
   const [barcodes, setBarcodes] = useState<ProductBarcode[]>(existing?.barcodes ?? (initialBarcode ? [{ barcode: initialBarcode, kind: 'pabrik' }] : []))
   const [partNumbers, setPartNumber] = useState<ProductPartNumber[]>(existing?.partNumbers ?? [])
   const [createInternal, setCreateInternal] = useState(false)
@@ -164,16 +174,16 @@ function ProductForm({ existing }: { existing: ProductDetail | null }) {
     onSuccess: async (id, { value, next }) => {
       await refresh(id)
       if (!next) {
-        navigate(`/products/${id}`, { replace: true, state: { message: `${fullName(value)} tersimpan.` } })
+        navigate(`${page.path}/${id}`, { replace: true, state: { message: `${fullName(value)} tersimpan.` } })
         return
       }
-      // "Simpan & berikutnya": tipe dan kategori dipertahankan untuk input data awal beruntun (PRD 4.2).
-      setValues({ ...EMPTY_FIELDS, type: values.type, categoryId: values.categoryId, unit: part ? values.unit : EMPTY_FIELDS.unit })
+      // "Simpan & berikutnya": kategori dipertahankan untuk input data awal beruntun (PRD 4.2).
+      setValues({ ...EMPTY_FIELDS, type, categoryId: values.categoryId, unit: part ? values.unit : EMPTY_FIELDS.unit })
       setBarcodes([])
       setPartNumber([])
       setCreateInternal(false)
-      setSaved(`${fullName(value)} tersimpan. Scan barcode part berikutnya.`)
-      if (initialBarcode) navigate('/products/new', { replace: true })
+      setSaved(`${fullName(value)} tersimpan. ${part ? 'Scan barcode part berikutnya.' : 'Isi jasa berikutnya.'}`)
+      if (initialBarcode) navigate(`${page.path}/new`, { replace: true })
       name.current?.focus()
     },
   })
@@ -204,7 +214,8 @@ function ProductForm({ existing }: { existing: ProductDetail | null }) {
   return (
     <>
       <FormTitle
-        title={existing ? fullName(existing) : 'Produk baru'}
+        type={type}
+        title={existing ? fullName(existing) : part ? 'Produk baru' : 'Jasa baru'}
         sublabel={
           existing &&
           (existing.type === 'part'
@@ -237,32 +248,11 @@ function ProductForm({ existing }: { existing: ProductDetail | null }) {
       >
         {!online && (
           <Notice tone="warning" className="mb-4">
-            Tidak ada koneksi internet. Produk hanya bisa disimpan saat online.
+            Tidak ada koneksi internet. {part ? 'Produk' : 'Jasa'} hanya bisa disimpan saat online.
           </Notice>
         )}
 
-        <Section title="Produk" note={isNew ? 'Part punya stok. Jasa tidak punya stok.' : 'Tipe produk tidak bisa diubah.'}>
-          {isNew && (
-            <div className="sm:col-span-2">
-              <span className="mb-2 block text-sm font-medium" id="label-type">
-                Tipe
-              </span>
-              <div role="radiogroup" aria-labelledby="label-type" className="inline-flex h-11 rounded-md border border-input bg-card p-1">
-                {(['part', 'jasa'] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    role="radio"
-                    aria-checked={values.type === t}
-                    onClick={() => update('type', t)}
-                    className={cn('rounded-sm px-4 text-[15px] text-muted-foreground', values.type === t && 'bg-active text-foreground')}
-                  >
-                    {t === 'part' ? 'Part' : 'Jasa'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+        <Section title={part ? 'Part' : 'Jasa'} note={part ? undefined : 'Jasa tidak punya stok. Jasa yang belum terdaftar bisa diketik manual di kasir.'}>
           <Field id="product-name" label="Nama" error={fieldErrors.name} className={part ? undefined : 'sm:col-span-2'}>
             <Input
               ref={name}
@@ -391,7 +381,7 @@ function ProductForm({ existing }: { existing: ProductDetail | null }) {
         <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-end gap-3 border-t border-border bg-background px-4 py-4 lg:-mx-8 lg:px-8">
           {errorMessage && <span className="mr-auto text-sm text-negative" role="alert">{errorMessage.message}</span>}
           {!errorMessage && saved && <span className="mr-auto text-sm text-muted-foreground" role="status">{saved}</span>}
-          <Button type="button" variant="outline" render={<Link to="/products" />} nativeButton={false}>
+          <Button type="button" variant="outline" render={<Link to={page.path} />} nativeButton={false}>
             {isNew ? 'Batal' : 'Kembali'}
           </Button>
           {isNew ? (
@@ -413,14 +403,14 @@ function ProductForm({ existing }: { existing: ProductDetail | null }) {
 
       {existing && (
         <section className="mt-10 max-w-[880px] border-t border-rule pt-6">
-          <h2 className="text-base font-medium">{existing.active ? 'Nonaktifkan produk' : 'Produk nonaktif'}</h2>
+          <h2 className="text-base font-medium">{existing.active ? `Nonaktifkan ${page.noun}` : `${page.menu} nonaktif`}</h2>
           <p className="mt-1 text-muted-foreground">
             {existing.active
-              ? 'Produk tidak bisa dihapus karena nota lama masih merujuk ke produk ini. Produk nonaktif tidak muncul di kasir, pencarian, dan opname.'
-              : 'Produk ini tidak muncul di kasir, pencarian, dan opname.'}
+              ? `${page.menu} tidak bisa dihapus karena nota lama masih merujuk ke ${page.noun} ini. ${page.menu} nonaktif tidak muncul di kasir, pencarian, dan opname.`
+              : `${page.menu} ini tidak muncul di kasir, pencarian, dan opname.`}
           </p>
           <Button variant={existing.active ? 'destructive' : 'outline'} className="mt-4" disabled={!online} onClick={() => setDialog('status')}>
-            {existing.active ? 'Nonaktifkan produk' : 'Aktifkan lagi'}
+            {existing.active ? `Nonaktifkan ${page.noun}` : 'Aktifkan lagi'}
           </Button>
         </section>
       )}
@@ -675,14 +665,15 @@ function StatusDialog({ product, onDone, refresh }: { product: ProductDetail; on
     },
   })
   const remainingStock = product.type === 'part' && product.stock !== null && product.stock !== 0
+  const subject = PAGES[product.type].menu
   return (
     <div className="flex flex-col gap-5">
       <DialogHeader>
         <DialogTitle>{product.active ? `Nonaktifkan ${fullName(product)}?` : `Aktifkan lagi ${fullName(product)}?`}</DialogTitle>
         <DialogDescription>
           {product.active
-            ? 'Produk tidak muncul lagi di kasir, pencarian, dan opname penuh. Nota lama tetap utuh. Perubahan tercatat di riwayat.'
-            : 'Produk muncul lagi di kasir, pencarian, dan opname. Perubahan tercatat di riwayat.'}
+            ? `${subject} tidak muncul lagi di kasir, pencarian, dan opname penuh. Nota lama tetap utuh. Perubahan tercatat di riwayat.`
+            : `${subject} muncul lagi di kasir, pencarian, dan opname. Perubahan tercatat di riwayat.`}
         </DialogDescription>
       </DialogHeader>
       {product.active && remainingStock && (

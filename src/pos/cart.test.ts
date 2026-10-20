@@ -12,6 +12,7 @@ import {
   addProduct,
   setServicePrice,
   changeQty,
+  addManualService,
   type Cart,
 } from '@/pos/cart'
 import type { LocalProduct } from '@/products/product'
@@ -128,5 +129,36 @@ describe('kurangi dari katalog (R54)', () => {
     const k = changeQty(add(EMPTY_CART, BULK), 0, 1.5)!
     expect(decreaseProduct(k, 'curah').lines).toEqual([])
     expect(decreaseProduct(k, 'tidak-ada')).toBe(k)
+  })
+})
+
+describe('addManualService', () => {
+  test('jasa manual tanpa produk, nama dirapikan, harga tidak diperbarui saat keranjang ditahan dibuka', () => {
+    const k = addManualService(add(EMPTY_CART, OIL), '  Las   knalpot ', 25000, 'm1')!
+    expect(k.lines[1]).toMatchObject({ productId: null, type: 'jasa', name: 'Las knalpot', brand: null, qty: 1, price: 25000, manualPrice: true })
+    expect(k.selected).toBe(1)
+    const reopened = refreshPrices(k, new Map([[OIL.id, OIL]]))
+    expect(reopened.lines[1]).toEqual(k.lines[1])
+  })
+
+  test('nama dan tarif yang sama menambah qty; tarif lain jadi baris baru', () => {
+    let k = addManualService(EMPTY_CART, 'Las knalpot', 25000, 'm1')!
+    k = addManualService(k, 'LAS KNALPOT', 25000, 'm2')!
+    k = addManualService(k, 'Las knalpot', 30000, 'm3')!
+    expect(k.lines.map((b) => [b.name, b.price, b.qty])).toEqual([['Las knalpot', 25000, 2], ['Las knalpot', 30000, 1]])
+  })
+
+  test('tarif boleh Rp 0; nama kosong, terlalu panjang, atau tarif tidak valid ditolak', () => {
+    expect(addManualService(EMPTY_CART, 'Cek kendaraan', 0, 'm1')?.lines[0].price).toBe(0)
+    expect(addManualService(EMPTY_CART, '   ', 1000, 'm1')).toBeNull()
+    expect(addManualService(EMPTY_CART, 'x'.repeat(101), 1000, 'm1')).toBeNull()
+    expect(addManualService(EMPTY_CART, 'Las', -1, 'm1')).toBeNull()
+    expect(addManualService(EMPTY_CART, 'Las', 1.5, 'm1')).toBeNull()
+  })
+
+  test('jasa manual tidak tercampur dengan produk di keranjang', () => {
+    const k = addManualService(add(EMPTY_CART, TIRE_PATCH), 'Tambal ban', 15000, 'm1')!
+    expect(k.lines.map((b) => [b.productId, b.qty])).toEqual([['tambal', 1], [null, 1]])
+    expect(decreaseProduct(k, 'tambal').lines.map((b) => b.productId)).toEqual([null])
   })
 })
