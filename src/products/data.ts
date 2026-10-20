@@ -13,6 +13,53 @@ export function useProductList() {
   return useQuery({ queryKey: PRODUCT_LIST_KEY, queryFn: () => fetchServerProducts({ includeInactive: true }) })
 }
 
+export type InternalBarcode = {
+  id: string
+  barcode: string
+  productId: string
+  name: string
+  brand: string | null
+  categoryId: string
+  category: string
+}
+
+const INTERNAL_BARCODE_PAGE = 1000 // batas baris per permintaan di Data API Supabase
+
+/** Barcode internal milik part aktif, untuk layar Label barcode (PRD 4.9). Diurutkan dari angkanya. */
+export function useInternalBarcodes() {
+  return useQuery({
+    queryKey: ['products', 'internal-barcodes'],
+    queryFn: async (): Promise<InternalBarcode[]> => {
+      const result: InternalBarcode[] = []
+      for (let from = 0; ; from += INTERNAL_BARCODE_PAGE) {
+        const rows = unwrap(
+          await supabase()
+            .from('product_barcodes')
+            .select('id, barcode, products!inner ( id, nama, merek, aktif, category_id, categories ( nama ) )')
+            .eq('jenis', 'internal')
+            .eq('products.aktif', true)
+            .order('barcode')
+            .range(from, from + INTERNAL_BARCODE_PAGE - 1),
+        )
+        result.push(
+          ...rows.map((b) => ({
+            id: b.id,
+            barcode: b.barcode,
+            productId: b.products.id,
+            name: b.products.nama,
+            brand: b.products.merek,
+            categoryId: b.products.category_id,
+            category: b.products.categories?.nama ?? '',
+          })),
+        )
+        if (rows.length < INTERNAL_BARCODE_PAGE) break
+      }
+      // Angka urut bisa beda panjang (999999 lalu 1000000), jadi urutkan sebagai angka.
+      return result.sort((a, b) => a.barcode.length - b.barcode.length || a.barcode.localeCompare(b.barcode))
+    },
+  })
+}
+
 export type ProductBarcode = { id?: string; barcode: string; kind: 'pabrik' | 'internal' }
 export type ProductPartNumber = { id?: string; code: string; kind: 'oem' | 'alt' }
 

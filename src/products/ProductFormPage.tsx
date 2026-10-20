@@ -629,7 +629,7 @@ function PrintLabelDialog({ product, width, onDone }: { product: ProductDetail; 
       onSubmit={async (e) => {
         e.preventDefault()
         if (!valid) return
-        await print(<LabelSheet label={{ name: product.name, brand: product.brand, code }} count={n} width={width} />, width)
+        await print(<LabelSheet items={[{ label: { name: product.name, brand: product.brand, code }, count: n }]} width={width} />, width)
         onDone()
       }}
     >

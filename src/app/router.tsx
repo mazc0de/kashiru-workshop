@@ -103,6 +103,13 @@ export const router = createBrowserRouter([
         },
       },
       {
+        path: '/barcode-labels',
+        lazy: async () => {
+          const { BarcodeLabelsPage } = await import('@/products/BarcodeLabelsPage')
+          return { element: <LaptopOnly title="Label barcode"><BarcodeLabelsPage /></LaptopOnly> }
+        },
+      },
+      {
         path: '/settings',
         lazy: async () => ({ Component: (await import('@/settings/SettingsLayout')).SettingsLayout }),
         children: [

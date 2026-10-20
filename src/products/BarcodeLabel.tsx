@@ -54,12 +54,15 @@ export function LabelBarcode({ label, width }: { label: LabelContent; width: Pap
   )
 }
 
-export function LabelSheet({ label, count, width }: { label: LabelContent; count: number; width: PaperWidth }) {
+export type LabelPrintItem = { label: LabelContent; count: number }
+
+/** Semua label dicetak berurutan dalam satu gulungan, jadi kertas hanya dipotong sekali. */
+export function LabelSheet({ items, width }: { items: LabelPrintItem[]; width: PaperWidth }) {
   return (
     <>
-      {Array.from({ length: count }, (_, i) => (
-        <LabelBarcode key={i} label={label} width={width} />
-      ))}
+      {items.flatMap(({ label, count }) =>
+        Array.from({ length: count }, (_, i) => <LabelBarcode key={`${label.code}-${i}`} label={label} width={width} />),
+      )}
     </>
   )
 }

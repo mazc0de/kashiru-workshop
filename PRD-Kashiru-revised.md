@@ -270,6 +270,7 @@ Untuk part tanpa barcode pabrik, misalnya baut.
 - Part yang sudah punya barcode pabrik tetap bisa diberi barcode internal juga, dan keduanya sama-sama bisa di-scan.
 - **Isi label**: nama part dan merek (dipotong kalau terlalu panjang), barcode, dan angka kode dalam bentuk teks. **Harga tidak dicetak.**
 - **Cetak**: dari halaman part, tekan Cetak label, pilih barcode kalau ada lebih dari satu, isi jumlah label, lalu cetak ke BTP-3050 di kertas yang terpasang (kertas struk atau gulungan stiker thermal 58/80mm). Kertas dipotong otomatis setelah semua label selesai dicetak. Tata letak label saat ini dibuat untuk gulungan kontinu dan disesuaikan setelah uji printer (Fase 0).
+- **Menu Label barcode**: daftar semua barcode internal milik part aktif (cari nama/merek/barcode, filter kategori). Centang beberapa part, isi jumlah label per part (1–200), lalu cetak semuanya sekaligus dalam satu gulungan.
 
 ### 4.10 Cetak Struk (Kassen BTP-3050)
 

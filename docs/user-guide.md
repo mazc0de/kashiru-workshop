@@ -50,6 +50,7 @@ Kalau scan tidak masuk ke keranjang, buka Pengaturan → **Scanner** dan coba **
 
 - Tambah part atau jasa dari menu Produk. Part bisa punya beberapa barcode dan kode part. Part tanpa barcode pabrik bisa dibuatkan **barcode internal** lalu dicetak labelnya.
 - Produk tidak pernah dihapus; nonaktifkan kalau tidak dijual lagi.
+- Menu **Label barcode** menampilkan semua barcode internal part aktif. Centang part yang labelnya mau ditempel, isi jumlah label per part, lalu **Cetak**. Semua label keluar dalam satu gulungan dan kertas dipotong sekali di akhir.
 
 ## Stok
 
