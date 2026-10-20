@@ -32,7 +32,14 @@ export type ProductValues = {
 
 export type FormErrors = Partial<Record<keyof FormFields, string>>
 
-export const COMMON_UNITS = ['pcs', 'liter', 'meter', 'set', 'botol', 'pasang', 'kaleng', 'roll']
+/** Pilihan satuan part di form produk. Satuan per takaran (liter, meter, kg, gram) biasanya dipakai bersama "Bisa pecahan". */
+export const COMMON_UNITS = ['pcs', 'set', 'pasang', 'botol', 'kaleng', 'tube', 'liter', 'meter', 'roll', 'lembar', 'kg', 'gram', 'pak', 'dus']
+
+/** Pilihan satuan untuk isian; satuan lama di luar daftar tetap ditampilkan supaya tidak berubah saat diedit. */
+export function unitOptions(current: string): string[] {
+  const value = current.trim()
+  return value && !COMMON_UNITS.includes(value) ? [...COMMON_UNITS, value] : COMMON_UNITS
+}
 
 const tidy = (s: string) => s.trim().replace(/\s+/g, ' ')
 

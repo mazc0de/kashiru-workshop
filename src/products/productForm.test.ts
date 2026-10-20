@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { diffList, EMPTY_FIELDS, fieldsFromProduct, validateProduct, priceWarning, type FormFields } from '@/products/productForm'
+import { diffList, EMPTY_FIELDS, fieldsFromProduct, validateProduct, priceWarning, unitOptions, COMMON_UNITS, type FormFields } from '@/products/productForm'
 
 const part = (partial: Partial<FormFields>): FormFields => ({ ...EMPTY_FIELDS, name: 'Oli MPX 1L', categoryId: 'k-oli', sellingPrice: '52.000', ...partial })
 const services = (partial: Partial<FormFields>): FormFields => ({ ...EMPTY_FIELDS, type: 'jasa', name: 'Servis rem', categoryId: 'k-jasa', sellingPrice: '35.000', ...partial })
@@ -86,4 +86,12 @@ test('isian dari produk lama memakai format rupiah dan koma', () => {
 
 test('bedaDaftar mencari yang ditambah dan dihapus', () => {
   expect(diffList(['a', 'b'], ['b', 'c'], (x) => x)).toEqual({ add: ['c'], remove: ['a'] })
+})
+
+describe('unitOptions', () => {
+  test('daftar satuan baku, satuan lama di luar daftar tetap ikut', () => {
+    expect(unitOptions('pcs')).toEqual(COMMON_UNITS)
+    expect(unitOptions(EMPTY_FIELDS.unit)).toContain(EMPTY_FIELDS.unit)
+    expect(unitOptions('galon')).toEqual([...COMMON_UNITS, 'galon'])
+  })
 })

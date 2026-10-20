@@ -34,7 +34,7 @@ import {
   fieldsFromProduct,
   validateProduct,
   priceWarning,
-  COMMON_UNITS,
+  unitOptions,
   type FormFields,
   type ProductValues,
   type FormErrors,
@@ -293,12 +293,18 @@ function ProductForm({ existing, type }: { existing: ProductDetail | null; type:
         {part && (
           <Section title="Stok" note={isNew ? 'Setelah part dibuat, stok hanya berubah lewat nota, penerimaan, opname, atau penyesuaian stok.' : undefined}>
             <Field id="product-unit" label="Satuan">
-              <Input id="product-unit" list="unit-list" autoComplete="off" value={values.unit} onChange={(e) => update('unit', e.target.value)} />
-              <datalist id="unit-list">
-                {COMMON_UNITS.map((s) => (
-                  <option key={s} value={s} />
+              <select
+                id="product-unit"
+                className="h-11 w-full rounded-md border border-input bg-card px-3 text-[15px]"
+                value={values.unit}
+                onChange={(e) => update('unit', e.target.value)}
+              >
+                {unitOptions(values.unit).map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </Field>
             <Field id="product-min-stock" label="Stok minimum" hint="0 atau kosong berarti tidak dipantau." error={fieldErrors.minStock}>
               <Input
