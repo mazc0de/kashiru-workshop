@@ -1,11 +1,14 @@
-import { formatDate, formatRupiah } from '@/lib/format'
+import { formatDate } from '@/lib/format'
 import { useReceivingInRange } from '@/reports/data'
 import { periodLabel } from '@/reports/period'
 import { reportFileName, sumOf, useReportContext } from '@/reports/reportContext'
 import { ReportView, VoidPill } from '@/reports/ReportView'
 import { summarySection, tableSection } from '@/reports/sections'
 
-/** Laporan penerimaan (PRD 4.11) per tanggal masuk, tanpa supplier (R52). Penerimaan void ditandai dan tidak dihitung. */
+/**
+ * Laporan penerimaan (PRD 4.11) per tanggal masuk, tanpa supplier (R52). Penerimaan void ditandai dan tidak dihitung.
+ * Tanpa nilai rupiah sejak R64: harga beli diganti Kode Harga Beli.
+ */
 export function ReceivingReport() {
   const { period } = useReportContext()
   const list = useReceivingInRange(period.from, period.to)
@@ -18,13 +21,8 @@ export function ReceivingReport() {
           return [
             summarySection([
               { label: 'Penerimaan', value: active.length, kind: 'count' },
-              { label: 'Total nilai', value: sumOf(active, (r) => r.total) },
-              {
-                label: 'Penerimaan void',
-                value: voided.length,
-                kind: 'count',
-                hint: voided.length ? `${formatRupiah(sumOf(voided, (r) => r.total))}, tidak dihitung` : undefined,
-              },
+              { label: 'Baris', value: sumOf(active, (r) => r.lineCount), kind: 'count' },
+              { label: 'Penerimaan void', value: voided.length, kind: 'count', hint: voided.length ? 'Tidak dihitung' : undefined },
             ]),
             tableSection({
               title: 'Daftar penerimaan',
@@ -39,10 +37,9 @@ export function ReceivingReport() {
                 { title: 'Tanggal masuk', value: (r) => formatDate(r.receivedDate), width: 14 },
                 { title: 'Akun', value: (r) => r.account, width: 16 },
                 { title: 'Baris', value: (r) => r.lineCount, kind: 'qty', width: 8 },
-                { title: 'Total', value: (r) => r.total, kind: 'rupiah', width: 14 },
                 { title: 'Status', value: (r) => (r.status === 'void' ? 'Void' : ''), width: 8, render: (r) => (r.status === 'void' ? <VoidPill /> : null) },
               ],
-              total: ['Total tanpa void', null, null, null, sumOf(active, (r) => r.total), null],
+              total: ['Total tanpa void', null, null, sumOf(active, (r) => r.lineCount), null],
             }),
           ]
         })()

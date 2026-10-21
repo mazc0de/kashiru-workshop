@@ -33,6 +33,7 @@ const PART: LocalProduct = {
   stock: 5,
   minStock: 0,
   avgCost: 40000,
+  purchaseCode: null,
   barcodes: [],
   partNumbers: [],
   active: true,

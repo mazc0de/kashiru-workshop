@@ -166,9 +166,13 @@ scenario('part baru dengan stok awal membuat mutasi stok awal dan rata-rata pert
   assert.deepEqual(card.rows.map((x) => [x.jenis, num(x.qty_masuk), num(x.saldo), num(x.hpp_satuan), x.nama_akun]), [['stok_awal', 10, 10, 10000, 'Pak Budi']])
 })
 
-scenario('stok awal wajib disertai harga beli > Rp 0', async (db) => {
-  await expectFailure(createPart(db, { stock: 5 }), /Harga beli wajib diisi/)
-  await expectFailure(createPart(db, { stock: 5, cost: 0 }), /Harga beli wajib diisi/)
+scenario('stok awal tanpa harga beli memakai 0 (R64); harga beli tetap hanya bersama stok awal', async (db) => {
+  const id = await createPart(db, { stock: 5 })
+  assert.equal(await stockOf(db, id), 5)
+  assert.equal(await avgCost(db, id), 0)
+  const card = await db.query(`select jenis, hpp_satuan from stock_movements where product_id = $1`, [id])
+  assert.deepEqual(card.rows.map((r) => [r.jenis, num(r.hpp_satuan)]), [['stok_awal', 0]])
+  await expectFailure(createPart(db, { stock: 5, cost: -1 }), /tidak boleh negatif/)
   await expectFailure(createPart(db, { cost: 5000 }), /hanya diisi bersama stok awal/)
 })
 
@@ -531,22 +535,25 @@ scenario('penerimaan hanya untuk part dan harga beli tidak negatif', async (db) 
 
 // Penyesuaian stok -------------------------------------------------------------
 
-scenario('penyesuaian stok: alasan wajib, Lainnya wajib keterangan, part tanpa rata-rata wajib harga (R8)', async (db) => {
+scenario('penyesuaian stok: alasan wajib, Lainnya wajib keterangan, part tanpa rata-rata tidak wajib harga (R8, R64)', async (db) => {
   const id = await createPart(db)
   await expectFailure(rpc(db, cashier, 'adjust_stock', { p_product_id: id, p_qty: 2, p_alasan: null }), /Alasan wajib dipilih/)
   await expectFailure(rpc(db, cashier, 'adjust_stock', { p_product_id: id, p_qty: 2, p_alasan: 'lainnya' }), /Keterangan wajib/)
-  await expectFailure(rpc(db, cashier, 'adjust_stock', { p_product_id: id, p_qty: 2, p_alasan: 'ketemu' }), /Harga beli wajib diisi/)
-  assert.equal(await rpc(db, cashier, 'adjust_stock', { p_product_id: id, p_qty: 2, p_alasan: 'ketemu', p_harga_beli: 20000 }), '2.00')
+  await expectFailure(rpc(db, cashier, 'adjust_stock', { p_product_id: id, p_qty: 2, p_alasan: 'ketemu', p_harga_beli: -1 }), /tidak boleh negatif/)
+  assert.equal(await rpc(db, cashier, 'adjust_stock', { p_product_id: id, p_qty: 1, p_alasan: 'ketemu' }), '1.00')
+  assert.equal(await avgCost(db, id), 0)
+  // Harga beli yang masih dikirim (aplikasi lama) tetap dipakai.
+  assert.equal(await rpc(db, cashier, 'adjust_stock', { p_product_id: id, p_qty: 1, p_alasan: 'ketemu', p_harga_beli: 20000 }), '2.00')
   assert.equal(await avgCost(db, id), 20000)
   await rpc(db, cashier, 'adjust_stock', { p_product_id: id, p_qty: -1, p_alasan: 'rusak', p_keterangan: 'Pecah' })
   assert.equal(await stockOf(db, id), 1)
   assert.equal(await avgCost(db, id), 20000)
   const log = await db.query(`select data_lama, data_baru, user_id from change_logs where aksi = 'penyesuaian_stok' order by id`)
-  assert.equal(log.rows.length, 2)
-  assert.deepEqual(log.rows[1].data_baru, { stok: 1, qty: -1, alasan: 'rusak', keterangan: 'Pecah' })
-  assert.equal(log.rows[1].user_id, cashier)
+  assert.equal(log.rows.length, 3)
+  assert.deepEqual(log.rows[2].data_baru, { stok: 1, qty: -1, alasan: 'rusak', keterangan: 'Pecah' })
+  assert.equal(log.rows[2].user_id, cashier)
   const card = await asUser(db, cashier, 'select alasan, keterangan, qty_keluar from stock_card where product_id = $1 order by id', [id])
-  assert.deepEqual(card.rows.map((x) => [x.alasan, x.keterangan, num(x.qty_keluar)]), [['ketemu', null, null], ['rusak', 'Pecah', 1]])
+  assert.deepEqual(card.rows.map((x) => [x.alasan, x.keterangan, num(x.qty_keluar)]), [['ketemu', null, null], ['ketemu', null, null], ['rusak', 'Pecah', 1]])
 })
 
 scenario('penyesuaian tambah pada part yang punya rata-rata memakai rata-rata saat itu', async (db) => {
@@ -624,18 +631,16 @@ scenario('opname: hasil sesi dikonfirmasi hanya berisi part yang tercatat, HPP t
   assert.deepEqual(m.rows.map((x) => [x.product_id, num(x.hpp_satuan)]), [[a, 10000]])
 })
 
-scenario('opname: selisih lebih pada part tanpa rata-rata wajib harga beli', async (db) => {
+scenario('opname: selisih lebih pada part tanpa rata-rata tidak wajib harga beli (R64)', async (db) => {
   const id = await createPart(db, { name: 'Baut' })
   const o = await rpc(db, owner, 'open_opname', { p_jenis: 'penuh' })
   await rpc(db, cashier, 'record_opname_count', { p_opname_id: o.id, p_product_id: id, p_qty: 3 })
   await rpc(db, cashier, 'set_opname_reason', { p_opname_id: o.id, p_product_ids: [id], p_alasan: 'ketemu' })
   const t = await asUser(db, cashier, 'select perlu_harga_beli from review_opname($1)', [o.id])
-  assert.equal(t.rows[0].perlu_harga_beli, true)
-  await expectFailure(rpc(db, owner, 'confirm_opname', { p_opname_id: o.id }), /Harga beli wajib diisi untuk part tanpa harga rata-rata: Baut/)
-  await rpc(db, cashier, 'set_opname_purchase_price', { p_opname_id: o.id, p_product_id: id, p_harga_beli: 25000 })
+  assert.equal(t.rows[0].perlu_harga_beli, false)
   await rpc(db, owner, 'confirm_opname', { p_opname_id: o.id })
   assert.equal(await stockOf(db, id), 3)
-  assert.equal(await avgCost(db, id), 25000)
+  assert.equal(await avgCost(db, id), 0)
 })
 
 scenario('opname: scan menambah hitungan, ketik qty mengganti hitungan', async (db) => {
@@ -794,6 +799,61 @@ scenario('laporan penjualan: omzet setelah diskon, part/jasa terpisah, void tida
   // Nota kemarin tidak masuk periode hari ini.
   const [yesterday] = await report(db, cashier, 'report_sales_summary', [daysAgo(1), daysAgo(1)])
   assert.equal(yesterday.nota, 0)
+})
+
+scenario('kode harga beli: dirapikan jadi kapital, hanya huruf, hanya untuk part (R64)', async (db) => {
+  const cat = await createCategory(db)
+  const id = await rpc(db, owner, 'create_product', {
+    p_tipe: 'part', p_nama: 'Oli MPX', p_category_id: cat, p_harga_jual: 50000, p_stok_awal: 4, p_kode_harga_beli: ' abgsk ',
+  })
+  assert.equal((await db.query('select kode_harga_beli from products where id = $1', [id])).rows[0].kode_harga_beli, 'ABGSK')
+  assert.equal(await stockOf(db, id), 4)
+  const blank = await createPart(db)
+  assert.equal((await db.query('select kode_harga_beli from products where id = $1', [blank])).rows[0].kode_harga_beli, null)
+  await expectFailure(
+    rpc(db, owner, 'create_product', { p_tipe: 'part', p_nama: 'Busi', p_category_id: cat, p_harga_jual: 20000, p_kode_harga_beli: '45000' }),
+    /hanya boleh huruf A-Z/,
+  )
+  await expectFailure(
+    rpc(db, owner, 'create_product', { p_tipe: 'part', p_nama: 'Busi', p_category_id: cat, p_harga_jual: 20000, p_kode_harga_beli: 'AB GS' }),
+    /hanya boleh huruf A-Z/,
+  )
+  await expectFailure(
+    rpc(db, owner, 'create_product', { p_tipe: 'jasa', p_nama: 'Servis', p_category_id: cat, p_harga_jual: 20000, p_kode_harga_beli: 'AB' }),
+    /kode harga beli/,
+  )
+  // Diubah langsung dari form produk: tercatat di riwayat; huruf kecil dan angka ditolak database.
+  await asUser(db, cashier, `update products set kode_harga_beli = 'ACDTK' where id = $1`, [id])
+  const log = await db.query(`select aksi, data_lama, data_baru, user_id from change_logs where entitas_id = $1 order by id`, [id])
+  assert.deepEqual(log.rows.map((r) => [r.aksi, r.data_lama, r.data_baru, r.user_id]), [
+    ['ubah_produk', { kode_harga_beli: 'ABGSK' }, { kode_harga_beli: 'ACDTK' }, cashier],
+  ])
+  await expectFailure(asUser(db, cashier, `update products set kode_harga_beli = 'acd' where id = $1`, [id]), /kode_harga_beli_valid/)
+  await expectFailure(asUser(db, cashier, `update products set kode_harga_beli = 'A1' where id = $1`, [id]), /kode_harga_beli_valid/)
+})
+
+scenario('kode harga beli dari penerimaan: memperbarui kode part, kosong tidak mengubah, void tidak mengembalikan (R64)', async (db) => {
+  const a = await createPart(db, { name: 'Oli A' })
+  const b = await createPart(db, { name: 'Oli B' })
+  await asUser(db, owner, `update products set kode_harga_beli = 'ABGSK' where id = $1`, [b])
+  const r = await receive(db, [
+    { product_id: a, qty: 5, harga_beli: 0, kode_harga_beli: 'kmt' },
+    { product_id: b, qty: 2, harga_beli: 0, kode_harga_beli: '' },
+  ])
+  const code = async (id) => (await db.query('select kode_harga_beli from products where id = $1', [id])).rows[0].kode_harga_beli
+  assert.equal(await code(a), 'KMT')
+  assert.equal(await code(b), 'ABGSK')
+  assert.deepEqual([await stockOf(db, a), await stockOf(db, b)], [5, 2])
+  // Kode yang sama tidak membuat catatan riwayat baru.
+  await receive(db, [{ product_id: a, qty: 1, harga_beli: 0, kode_harga_beli: 'KMT' }])
+  const logs = await db.query(`select count(*) from change_logs where aksi = 'ubah_produk' and entitas_id = $1`, [a])
+  assert.equal(num(logs.rows[0].count), 1)
+  await rpc(db, owner, 'void_receipt', { p_receipt_id: r.id, p_alasan: 'Salah input' })
+  assert.equal(await code(a), 'KMT')
+  await expectFailure(receive(db, [{ product_id: a, qty: 1, harga_beli: 0, kode_harga_beli: '12' }]), /hanya boleh huruf A-Z/)
+  // Aplikasi tanpa harga beli: dianggap 0.
+  await receive(db, [{ product_id: a, qty: 1 }])
+  assert.equal(await stockOf(db, a), 2) // 5 + 1, void -5, lalu +1
 })
 
 scenario('jasa manual: tercatat di nota tanpa produk, tanpa stok, dan masuk laporan sebagai Jasa manual', async (db) => {

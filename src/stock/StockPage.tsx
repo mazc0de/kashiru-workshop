@@ -6,14 +6,13 @@ import { cn } from 'cn'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { exportExcel } from '@/lib/export'
-import { formatNumber, formatQty, formatDate } from '@/lib/format'
+import { formatQty, formatDate } from '@/lib/format'
 import { printText } from '@/lib/printText'
 import { useSettings } from '@/lib/settings'
 import { useIsLaptop } from '@/lib/useIsLaptop'
 import { useProductList } from '@/products/data'
 import { searchProducts, STOCK_STATUS_LABELS, fullName, stockStatus, type StockStatus } from '@/products/product'
 import { StockStatusPill } from '@/products/StockStatusPill'
-import { useLastPurchases } from '@/stock/data'
 import { summarizeStatus, purchaseSuggestions, buildSuggestionText } from '@/stock/stock'
 
 type Filter = 'all' | StockStatus
@@ -116,11 +115,10 @@ function StockStatusTab({ filter, setFilter }: { filter: Filter; setFilter: (f: 
 
       {/* Tabel di laptop; di HP setiap part menjadi dua baris (PRD 6). */}
       <div className="mt-4 overflow-hidden rounded-md border border-border bg-card">
-        <div className="hidden grid-cols-[minmax(0,1fr)_130px_110px_150px_140px] items-center px-4 py-3 text-sm text-muted-foreground lg:grid">
+        <div className="hidden grid-cols-[minmax(0,1fr)_130px_110px_140px] items-center px-4 py-3 text-sm text-muted-foreground lg:grid">
           <span>{list.isSuccess ? `${result.length} part` : 'Part'}</span>
           <span className="px-4 text-right">Stok</span>
           <span className="px-4 text-right">Minimum</span>
-          <span className="px-4 text-right">Harga beli rata-rata</span>
           <span className="sr-only">Status</span>
         </div>
         <p className="px-4 py-3 text-sm text-muted-foreground lg:hidden">{list.isSuccess ? `${result.length} part` : 'Part'}</p>
@@ -131,7 +129,7 @@ function StockStatusTab({ filter, setFilter }: { filter: Filter; setFilter: (f: 
           {result.map((p) => (
             <li
               key={p.id}
-              className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 border-t border-rule px-4 py-2.5 lg:h-12 lg:grid-cols-[minmax(0,1fr)_130px_110px_150px_140px] lg:items-center lg:gap-x-0 lg:py-0"
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 border-t border-rule px-4 py-2.5 lg:h-12 lg:grid-cols-[minmax(0,1fr)_130px_110px_140px] lg:items-center lg:gap-x-0 lg:py-0"
             >
               <Link to={`/stock/${p.id}`} className="min-w-0 truncate" title="Buka kartu stok">
                 {p.name}
@@ -144,7 +142,6 @@ function StockStatusTab({ filter, setFilter }: { filter: Filter; setFilter: (f: 
                 <span className="lg:hidden">Minimum </span>
                 {p.minStock ? formatQty(p.minStock) : '–'}
               </span>
-              <span className="hidden text-right lg:block lg:px-4">{p.avgCost ? formatNumber(p.avgCost) : <span className="text-muted-foreground">–</span>}</span>
               <span className="justify-self-end lg:justify-self-start lg:px-4">
                 <StockStatusPill stock={p.stock ?? 0} minStock={p.minStock} />
               </span>
@@ -158,9 +155,8 @@ function StockStatusTab({ filter, setFilter }: { filter: Filter; setFilter: (f: 
 
 function SuggestionsTab() {
   const list = useProductList()
-  const last = useLastPurchases()
   const settings = useSettings()
-  const lines = useMemo(() => purchaseSuggestions(list.data ?? [], last.data ?? new Map()), [list.data, last.data])
+  const lines = useMemo(() => purchaseSuggestions(list.data ?? []), [list.data])
   const width = settings.data?.ukuran_kertas === 58 ? 58 : 80
   const [date] = useState(() => formatDate(new Date()))
 
@@ -175,7 +171,6 @@ function SuggestionsTab() {
         { title: 'Minimum', value: (b) => b.product.minStock, kind: 'qty', width: 9 },
         { title: 'Usulan beli', value: (b) => b.suggested, kind: 'qty', width: 11 },
         { title: 'Satuan', value: (b) => b.product.unit ?? '', width: 8 },
-        { title: 'Harga beli terakhir', value: (b) => b.last?.purchasePrice ?? null, kind: 'rupiah', width: 18 },
       ],
       rows: lines,
     })
@@ -202,13 +197,12 @@ function SuggestionsTab() {
               <th className="px-4 font-normal">{list.isSuccess ? `${lines.length} part` : 'Part'}</th>
               <th className="w-[100px] px-4 text-right font-normal">Stok</th>
               <th className="w-[120px] px-4 text-right font-normal">Usulan beli</th>
-              <th className="w-[150px] px-4 text-right font-normal">Harga beli terakhir</th>
             </tr>
           </thead>
           <tbody>
             {list.isSuccess && lines.length === 0 && (
               <tr className="border-t border-rule">
-                <td colSpan={4} className="px-4 py-3 text-muted-foreground">Tidak ada part yang perlu dibeli.</td>
+                <td colSpan={3} className="px-4 py-3 text-muted-foreground">Tidak ada part yang perlu dibeli.</td>
               </tr>
             )}
             {lines.map((b) => (
@@ -222,7 +216,6 @@ function SuggestionsTab() {
                 <td className="px-4 text-right font-medium">
                   {b.suggested ? `${formatQty(b.suggested)} ${b.product.unit ?? ''}` : <span className="font-normal text-muted-foreground">–</span>}
                 </td>
-                <td className="px-4 text-right">{b.last ? formatNumber(b.last.purchasePrice) : <span className="text-muted-foreground">–</span>}</td>
               </tr>
             ))}
           </tbody>

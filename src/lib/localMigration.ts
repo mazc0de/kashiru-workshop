@@ -30,6 +30,7 @@ export function productFromOld(o: Old): LocalProduct {
     stock: o.stok,
     minStock: o.stokMin,
     avgCost: o.hargaBeliAvg,
+    purchaseCode: null,
     barcodes: o.barcodes ?? [],
     partNumbers: o.kodePart ?? [],
     active: o.aktif,

@@ -100,7 +100,6 @@ export function DiscountDialog({
   title,
   base,
   discount,
-  totalCogs,
   save,
   cancel,
 }: {
@@ -108,25 +107,20 @@ export function DiscountDialog({
   /** Nilai yang didiskon: jumlah baris atau subtotal nota. */
   base: number
   discount: Discount
-  /** HPP x qty untuk baris part; null untuk jasa dan diskon nota. */
-  totalCogs: number | null
   save: (d: Discount) => void
   cancel: () => void
 }) {
   const [kind, setKind] = useState<DiscountKind>(discount?.kind ?? 'nominal')
   const [text, setText] = useState(discount ? (discount.kind === 'persen' ? String(discount.input).replace('.', ',') : formatRupiah(discount.input).slice(3)) : '')
-  const [acceptLoss, setAcceptLoss] = useState(false)
 
   const input = kind === 'nominal' ? parseRupiah(text) : parseQty(text)
   const result = input === null ? null : calculateDiscount({ kind, input }, base)
   const value = result && 'value' in result ? result.value : null
   const errorText = !text.trim() ? null : input === null ? 'Isi angka yang benar' : result && 'errorText' in result ? result.errorText : null
-  const belowCost = value !== null && totalCogs !== null && base - value < totalCogs
 
   const apply = () => {
     if (!text.trim()) return save(null)
     if (value === null || input === null) return
-    if (belowCost && !acceptLoss) return setAcceptLoss(true)
     save(value === 0 ? null : { kind, input })
   }
 
@@ -149,10 +143,7 @@ export function DiscountDialog({
             type="button"
             role="radio"
             aria-checked={kind === j}
-            onClick={() => {
-              setKind(j)
-              setAcceptLoss(false)
-            }}
+            onClick={() => setKind(j)}
             className={cn('rounded-sm px-4 text-[15px] text-muted-foreground', kind === j && 'bg-active text-foreground')}
           >
             {j === 'nominal' ? 'Rupiah' : 'Persen'}
@@ -167,10 +158,7 @@ export function DiscountDialog({
           className="w-40 text-right text-lg"
           value={text}
           onFocus={(e) => e.target.select()}
-          onChange={(e) => {
-            setText(e.target.value)
-            setAcceptLoss(false)
-          }}
+          onChange={(e) => setText(e.target.value)}
         />
       </Field>
       {value !== null && value > 0 && (
@@ -178,15 +166,12 @@ export function DiscountDialog({
           Diskon {formatRupiah(value)}, menjadi <span className="text-foreground">{formatRupiah(base - value)}</span>.
         </p>
       )}
-      {belowCost && (
-        <Notice tone="warning">Di bawah harga beli ({formatRupiah(totalCogs!)}). Tekan Terapkan sekali lagi kalau tetap ingin memberi diskon ini.</Notice>
-      )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={cancel}>
           Batal
         </Button>
         <Button type="submit" disabled={Boolean(errorText)}>
-          {belowCost && acceptLoss ? 'Tetap terapkan' : text.trim() ? 'Terapkan' : 'Hapus diskon'}
+          {text.trim() ? 'Terapkan' : 'Hapus diskon'}
         </Button>
       </DialogFooter>
     </form>

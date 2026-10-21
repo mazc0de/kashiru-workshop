@@ -33,11 +33,11 @@ import {
   EMPTY_FIELDS,
   fieldsFromProduct,
   validateProduct,
-  priceWarning,
   unitOptions,
   type FormFields,
   type ProductValues,
   type FormErrors,
+  purchaseCodeError,
 } from '@/products/productForm'
 import { LabelSheet } from '@/products/BarcodeLabel'
 import { fullName, type ProductType } from '@/products/product'
@@ -209,7 +209,6 @@ function ProductForm({ existing, type }: { existing: ProductDetail | null; type:
 
   const errorMessage = create.error ?? saveEdit.error
   const saving = create.isPending || saveEdit.isPending
-  const warning = isNew ? priceWarning(values) : null
 
   return (
     <>
@@ -219,7 +218,7 @@ function ProductForm({ existing, type }: { existing: ProductDetail | null; type:
         sublabel={
           existing &&
           (existing.type === 'part'
-            ? `Stok ${formatQty(existing.stock ?? 0)} ${existing.unit ?? ''} · harga beli rata-rata ${formatRupiah(existing.avgCost)}${existing.active ? '' : ' · nonaktif'}`
+            ? `Stok ${formatQty(existing.stock ?? 0)} ${existing.unit ?? ''} · ${existing.purchaseCode ? `kode harga ${existing.purchaseCode}` : 'belum ada kode harga'}${existing.active ? '' : ' · nonaktif'}`
             : `Jasa${existing.active ? '' : ' · nonaktif'}`)
         }
         action={
@@ -341,16 +340,26 @@ function ProductForm({ existing, type }: { existing: ProductDetail | null; type:
                     onChange={(e) => update('initialStock', e.target.value)}
                   />
                 </Field>
-                <Field id="product-cost" label="Harga beli per satuan" hint="Wajib kalau stok awal diisi." error={fieldErrors.purchasePrice}>
-                  <InputRupiah id="product-cost" value={values.purchasePrice} onEdit={(v) => update('purchasePrice', v)} invalid={Boolean(fieldErrors.purchasePrice)} />
-                </Field>
-                {warning && (
-                  <Notice tone="warning" className="sm:col-span-2">
-                    {warning}. Part tetap bisa disimpan.
-                  </Notice>
-                )}
               </>
             )}
+            {/* Kode Harga Beli (R64): huruf yang artinya hanya diketahui pemilik, pengganti harga beli angka. */}
+            <Field
+              id="product-purchase-code"
+              label="Kode harga"
+              hint="Opsional. Huruf A–Z, ditampilkan apa adanya."
+              error={fieldErrors.purchaseCode ?? purchaseCodeError(values.purchaseCode) ?? undefined}
+            >
+              <Input
+                id="product-purchase-code"
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                className="font-mono uppercase"
+                aria-invalid={Boolean(fieldErrors.purchaseCode ?? purchaseCodeError(values.purchaseCode))}
+                value={values.purchaseCode}
+                onChange={(e) => update('purchaseCode', e.target.value.toUpperCase())}
+              />
+            </Field>
           </Section>
         )}
 
@@ -684,7 +693,7 @@ function StatusDialog({ product, onDone, refresh }: { product: ProductDetail; on
       </DialogHeader>
       {product.active && remainingStock && (
         <Notice tone="warning">
-          Stok masih {formatQty(product.stock!)} {product.unit}. Stok ini tetap terhitung di nilai persediaan.
+          Stok masih {formatQty(product.stock!)} {product.unit}. Stoknya dibiarkan apa adanya.
         </Notice>
       )}
       {update.isError && <Notice tone="error">{update.error.message}</Notice>}

@@ -66,7 +66,6 @@ export function DashboardPage() {
           <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-rule pt-4">
             <Stat label="Omzet part" value={value(s?.partRevenue)} swatch="var(--chart-part)" />
             <Stat label="Omzet jasa" value={value(s?.serviceRevenue)} swatch="var(--chart-service)" />
-            <Stat label="Laba kotor" value={value(s && s.total - s.cogs)} />
             <Stat label="Nota" value={value(s?.sales)} />
             <Stat label="Kendaraan" value={value(s?.vehicles)} hint="Nopol berbeda" />
           </dl>

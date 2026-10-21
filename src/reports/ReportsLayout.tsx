@@ -5,10 +5,9 @@ import { PeriodFilter } from '@/reports/PeriodFilter'
 import { usePeriod } from '@/reports/usePeriod'
 import { periodParams } from '@/reports/period'
 
-/** Tujuh laporan sebagai tab beralamat sendiri (R33). */
+/** Enam laporan sebagai tab beralamat sendiri (R33). Laba kotor dihapus sejak R64: Kashiru tidak tahu harga beli. */
 const REPORTS = [
   { path: 'sales', title: 'Penjualan' },
-  { path: 'profit', title: 'Laba kotor' },
   { path: 'mechanics', title: 'Jasa per mekanik' },
   { path: 'service-history', title: 'Riwayat servis' },
   { path: 'stock', title: 'Stok' },

@@ -14,7 +14,8 @@ export type FormFields = {
   sellingPrice: string
   minStock: string
   initialStock: string
-  purchasePrice: string
+  /** Kode Harga Beli (R64): huruf yang artinya hanya diketahui pemilik. */
+  purchaseCode: string
 }
 
 export type ProductValues = {
@@ -27,7 +28,8 @@ export type ProductValues = {
   sellingPrice: number
   minStock: number
   initialStock: number | null
-  purchasePrice: number | null
+  /** null = part belum punya kode harga, atau jasa. */
+  purchaseCode: string | null
 }
 
 export type FormErrors = Partial<Record<keyof FormFields, string>>
@@ -42,6 +44,18 @@ export function unitOptions(current: string): string[] {
 }
 
 const tidy = (s: string) => s.trim().replace(/\s+/g, ' ')
+
+/** Kode Harga Beli (R64): spasi di tepi dibuang dan huruf dijadikan kapital, tanpa batas panjang. */
+export function tidyPurchaseCode(text: string): string {
+  return text.trim().toUpperCase()
+}
+
+/** Pesan kalau kode harga berisi selain huruf A–Z; null kalau valid atau kosong. */
+export function purchaseCodeError(text: string): string | null {
+  const code = tidyPurchaseCode(text)
+  if (/^[A-Z]*$/.test(code)) return null
+  return /\d/.test(code) ? 'Isi dengan kode harga (huruf), bukan angka.' : 'Kode harga hanya boleh huruf A–Z, tanpa spasi atau tanda baca.'
+}
 
 /** Memeriksa isian dan mengubahnya menjadi angka. `baru` = part/jasa sedang dibuat (stok awal hanya saat itu). */
 export function validateProduct(values: FormFields, isNew: boolean): { ok: true; value: ProductValues } | { ok: false; errors: FormErrors } {
@@ -66,18 +80,16 @@ export function validateProduct(values: FormFields, isNew: boolean): { ok: true;
   }
 
   let initialStock: number | null = null
-  let purchasePrice: number | null = null
   if (part && isNew && values.initialStock.trim()) {
     const v = parseQty(values.initialStock)
     if (v === null) errors.initialStock = 'Isi angka, paling banyak 2 angka di belakang koma'
     else if (!fractional && !Number.isInteger(v)) errors.initialStock = 'Stok awal harus bilangan bulat'
     else if (v > 0) initialStock = v
   }
-  if (initialStock !== null) {
-    const v = parseRupiah(values.purchasePrice)
-    if (v === null || v <= 0) errors.purchasePrice = 'Harga beli wajib diisi dan lebih dari Rp 0 kalau stok awal diisi'
-    else purchasePrice = v
-  }
+
+  // Kode harga opsional (R64); stok awal tidak lagi wajib disertai harga beli.
+  const codeError = part ? purchaseCodeError(values.purchaseCode) : null
+  if (codeError) errors.purchaseCode = codeError
 
   if (Object.keys(errors).length) return { ok: false, errors }
   return {
@@ -92,17 +104,9 @@ export function validateProduct(values: FormFields, isNew: boolean): { ok: true;
       sellingPrice: sellingPrice!,
       minStock,
       initialStock,
-      purchasePrice,
+      purchaseCode: part ? tidyPurchaseCode(values.purchaseCode) || null : null,
     },
   }
-}
-
-/** Peringatan yang tidak menghalangi simpan (PRD 4.2). */
-export function priceWarning(values: FormFields): string | null {
-  const price = parseRupiah(values.sellingPrice)
-  const cost = parseRupiah(values.purchasePrice)
-  if (values.type === 'part' && price !== null && cost !== null && cost > price) return 'Harga jual di bawah harga beli'
-  return null
 }
 
 /** Isi form dari produk yang sudah ada. */
@@ -115,6 +119,7 @@ export function fieldsFromProduct(p: {
   allowsFraction: boolean
   sellingPrice: number
   minStock: number
+  purchaseCode: string | null
 }): FormFields {
   const parsed = (n: number) => String(n).replace('.', ',')
   return {
@@ -127,7 +132,7 @@ export function fieldsFromProduct(p: {
     sellingPrice: new Intl.NumberFormat('id-ID').format(p.sellingPrice),
     minStock: p.minStock ? parsed(p.minStock) : '',
     initialStock: '',
-    purchasePrice: '',
+    purchaseCode: p.purchaseCode ?? '',
   }
 }
 
@@ -141,7 +146,7 @@ export const EMPTY_FIELDS: FormFields = {
   sellingPrice: '',
   minStock: '',
   initialStock: '',
-  purchasePrice: '',
+  purchaseCode: '',
 }
 
 /** Bagian daftar yang ditambah dan dihapus, untuk menyimpan perubahan barcode dan kode part. */

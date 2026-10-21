@@ -34,15 +34,17 @@ export function ProductsPage() {
   const [query, setQuery] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [status, setStatus] = useState<FilterStatus>('active')
+  // Filter part tanpa Kode Harga Beli (R64), untuk memperbarui data lama.
+  const [missingCode, setMissingCode] = useState(false)
   const [newBarcode, setNewBarcode] = useState<string | null>(null)
 
   const all = useMemo(() => (list.data ?? []).filter((p) => p.type === 'part'), [list.data])
   const result = useMemo(() => {
     const found = searchProducts(all, query, { categoryId: categoryId || null, includeInactive: status !== 'active' })
-    return status === 'inactive' ? found.filter((p) => !p.active) : found
-  }, [all, query, categoryId, status])
+    return found.filter((p) => (status !== 'inactive' || !p.active) && (!missingCode || !p.purchaseCode))
+  }, [all, query, categoryId, status, missingCode])
   // Pagination di frontend (revisi UI): 50 produk per halaman, kembali ke halaman 1 saat filter berubah.
-  const filterKey = `${query}|${categoryId}|${status}`
+  const filterKey = `${query}|${categoryId}|${status}|${missingCode}`
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 })
   const paged = paginate(result, pageState.key === filterKey ? pageState.page : 1, PAGE_SIZE)
 
@@ -58,6 +60,7 @@ export function ProductsPage() {
   }, newBarcode === null)
 
   const partTotal = all.filter((p) => p.active).length
+  const missingCodeTotal = all.filter((p) => p.active && !p.purchaseCode).length
 
   return (
     <>
@@ -78,6 +81,23 @@ export function ProductsPage() {
       {!online && (
         <Notice tone="warning" className="mt-6">
           Tidak ada koneksi internet. Produk hanya bisa ditambah dan diubah saat online.
+        </Notice>
+      )}
+
+      {list.isSuccess && missingCodeTotal > 0 && !missingCode && (
+        <Notice tone="warning" className="mt-6 flex flex-wrap items-center gap-3">
+          <span className="flex-1">
+            <strong className="font-semibold">{missingCodeTotal} part aktif belum punya kode harga.</strong> Buka part-nya lalu isi Kode harga.
+          </span>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setMissingCode(true)
+              setStatus('active')
+            }}
+          >
+            Tampilkan
+          </Button>
         </Notice>
       )}
 
@@ -120,6 +140,17 @@ export function ProductsPage() {
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          aria-pressed={missingCode}
+          onClick={() => setMissingCode((v) => !v)}
+          className={cn(
+            'h-11 rounded-md border border-input bg-card px-3 text-[15px] text-muted-foreground',
+            missingCode && 'border-foreground bg-active text-foreground',
+          )}
+        >
+          Belum ada kode harga
+        </button>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-md border border-border bg-card">
@@ -129,6 +160,7 @@ export function ProductsPage() {
               <th className="px-4 font-normal">
                 {list.isSuccess ? `${result.length} produk` : 'Produk'}
               </th>
+              <th className="w-[140px] px-4 font-normal">Kode harga</th>
               <th className="w-[160px] px-4 text-right font-normal">Harga jual</th>
               <th className="w-[140px] px-4 text-right font-normal">Stok</th>
               <th className="w-[120px] px-4 font-normal">
@@ -141,6 +173,7 @@ export function ProductsPage() {
               [0, 1, 2, 3].map((i) => (
                 <tr key={i} className="h-14 border-t border-rule" aria-hidden="true">
                   <td className="px-4"><div className="h-4 w-64 rounded-sm bg-muted" /></td>
+                  <td className="px-4"><div className="h-4 w-16 rounded-sm bg-muted" /></td>
                   <td className="px-4"><div className="ml-auto h-4 w-20 rounded-sm bg-muted" /></td>
                   <td className="px-4"><div className="ml-auto h-4 w-12 rounded-sm bg-muted" /></td>
                   <td />
@@ -148,7 +181,7 @@ export function ProductsPage() {
               ))}
             {list.isError && (
               <tr className="border-t border-rule">
-                <td colSpan={4} className="px-4 py-3 text-muted-foreground">
+                <td colSpan={5} className="px-4 py-3 text-muted-foreground">
                   Daftar produk tidak bisa dimuat.{' '}
                   <button type="button" className="text-foreground underline underline-offset-4" onClick={() => void list.refetch()}>
                     Coba lagi
@@ -158,10 +191,12 @@ export function ProductsPage() {
             )}
             {list.isSuccess && result.length === 0 && (
               <tr className="border-t border-rule">
-                <td colSpan={4} className="px-4 py-3 text-muted-foreground">
+                <td colSpan={5} className="px-4 py-3 text-muted-foreground">
                   {all.length === 0
                     ? 'Belum ada produk. Scan barcode part, atau klik Produk baru.'
-                    : 'Tidak ada produk yang cocok dengan pencarian ini.'}
+                    : missingCode
+                      ? 'Tidak ada part tanpa kode harga di pencarian ini.'
+                      : 'Tidak ada produk yang cocok dengan pencarian ini.'}
                 </td>
               </tr>
             )}
@@ -195,6 +230,15 @@ function ProductRow({ product: p }: { product: LocalProduct }) {
           {p.brand && <span className="text-muted-foreground"> · {p.brand}</span>}
         </Link>
         <span className="block truncate text-sm text-muted-foreground">{note}</span>
+      </td>
+      <td className="max-w-0 px-4">
+        {p.purchaseCode ? (
+          <span className="block truncate font-mono" title={p.purchaseCode}>
+            {p.purchaseCode}
+          </span>
+        ) : (
+          <span className="inline-flex h-6 items-center rounded-sm bg-pill-warning px-2 text-sm whitespace-nowrap text-pill-warning-ink">Belum ada</span>
+        )}
       </td>
       <td className="px-4 text-right">{formatNumber(p.sellingPrice)}</td>
       <td className="px-4 text-right">

@@ -37,14 +37,14 @@ const wibDate = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'A
 
 /**
  * Slow-moving (R29): stok > 0, tidak terjual dalam 90 hari terakhir (termasuk belum pernah), dan sudah
- * terdaftar lebih dari 90 hari. Urut nilai persediaan terbesar.
+ * terdaftar lebih dari 90 hari. Urut stok terbanyak (sejak R64 tanpa nilai rupiah).
  */
 export function slowMoving(rows: StockValueRow[], today: string): StockValueRow[] {
   // 90 hari terakhir = hari ini dan 89 hari sebelumnya.
   const cutoff = addDays(today, -SLOW_DAYS)
   return rows
     .filter((r) => r.stock > 0 && wibDate(r.registeredAt) <= cutoff && (r.lastSold === null || r.lastSold <= cutoff))
-    .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, 'id'))
+    .sort((a, b) => b.stock - a.stock || a.name.localeCompare(b.name, 'id'))
 }
 
 /** Fast-moving (R29): 20 part dengan qty terjual terbanyak di periode. */
@@ -53,34 +53,4 @@ export function fastMoving(rows: ProductSalesRow[]): ProductSalesRow[] {
     .filter((r) => r.type === 'part')
     .sort((a, b) => b.qty - a.qty || b.revenue - a.revenue || a.name.localeCompare(b.name, 'id'))
     .slice(0, FAST_COUNT)
-}
-
-export type StockValueSummary = {
-  total: number
-  /** Part dengan stok minus: tidak dihitung, perlu dicek (R30). */
-  negativeCount: number
-  /** Part berstok tanpa harga beli rata-rata: nilainya 0 (R30). */
-  noCostCount: number
-  byCategory: { category: string; parts: number; value: number }[]
-}
-
-export function summarizeStockValue(rows: StockValueRow[]): StockValueSummary {
-  const byCategory = new Map<string, { parts: number; value: number }>()
-  for (const r of rows) {
-    const c = byCategory.get(r.category) ?? { parts: 0, value: 0 }
-    c.parts++
-    c.value += r.value
-    byCategory.set(r.category, c)
-  }
-  return {
-    total: rows.reduce((s, r) => s + r.value, 0),
-    negativeCount: rows.filter((r) => r.stock < 0).length,
-    noCostCount: rows.filter((r) => r.stock > 0 && r.avgCost === 0).length,
-    byCategory: [...byCategory].map(([category, c]) => ({ category, ...c })).sort((a, b) => b.value - a.value || a.category.localeCompare(b.category, 'id')),
-  }
-}
-
-/** Margin laba kotor dalam persen, satu angka desimal; null kalau omzet 0. */
-export function marginPercent(revenue: number, cogs: number): number | null {
-  return revenue > 0 ? Math.round(((revenue - cogs) / revenue) * 1000) / 10 : null
 }

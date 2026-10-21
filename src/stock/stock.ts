@@ -4,9 +4,6 @@ import { fullName, stockStatus, type LocalProduct, type StockStatus } from '@/pr
 
 // Status stok dan saran belanja (PRD 4.3). Saran belanja hanya catatan, karena tidak ada PO.
 
-/** Harga beli terakhir per part (R52: tanpa supplier). */
-export type LastPurchase = { purchasePrice: number }
-
 export type Reason = 'rusak' | 'hilang' | 'ketemu' | 'salah_input' | 'lainnya'
 
 /** Daftar alasan tetap untuk opname dan penyesuaian stok (R8). */
@@ -33,21 +30,20 @@ export type SuggestionLine = {
   status: StockStatus
   /** (stok minimum x 2) - stok saat ini, tidak kurang dari 0. */
   suggested: number
-  last: LastPurchase | null
 }
 
 export function suggestedQty(stock: number, minStock: number): number {
   return Math.max(0, Math.round((minStock * 2 - stock) * 100) / 100)
 }
 
-/** Part aktif berstatus Menipis, Habis, atau Minus, urut nama. */
-export function purchaseSuggestions(products: LocalProduct[], last: Map<string, LastPurchase>): SuggestionLine[] {
+/** Part aktif berstatus Menipis, Habis, atau Minus, urut nama. Tanpa harga beli terakhir sejak R64. */
+export function purchaseSuggestions(products: LocalProduct[]): SuggestionLine[] {
   const result: SuggestionLine[] = []
   for (const p of products) {
     if (!p.active || p.type !== 'part' || p.stock === null) continue
     const status = stockStatus(p.stock, p.minStock)
     if (status !== 'low' && status !== 'out' && status !== 'negative') continue
-    result.push({ product: p, status, suggested: suggestedQty(p.stock, p.minStock), last: last.get(p.id) ?? null })
+    result.push({ product: p, status, suggested: suggestedQty(p.stock, p.minStock) })
   }
   return result.sort((a, b) => fullName(a.product).localeCompare(fullName(b.product), 'id'))
 }

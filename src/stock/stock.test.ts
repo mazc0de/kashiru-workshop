@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'vitest'
 
 import { fullName, type LocalProduct } from '@/products/product'
-import { summarizeStatus, purchaseSuggestions, buildSuggestionText, suggestedQty, type LastPurchase } from '@/stock/stock'
+import { summarizeStatus, purchaseSuggestions, buildSuggestionText, suggestedQty } from '@/stock/stock'
 
 function part(partial: Partial<LocalProduct> & Pick<LocalProduct, 'id' | 'name'>): LocalProduct {
   return {
     type: 'part', brand: null, categoryId: 'k', category: 'K', unit: 'pcs', allowsFraction: false, sellingPrice: 10000,
-    stock: 10, minStock: 0, avgCost: 8000, barcodes: [], partNumbers: [], active: true, ...partial,
+    stock: 10, minStock: 0, avgCost: 8000, purchaseCode: null, barcodes: [], partNumbers: [], active: true, ...partial,
   }
 }
 
@@ -29,16 +29,12 @@ test('usulan qty = (stok minimum x 2) - stok, tidak negatif (PRD 4.3)', () => {
 })
 
 describe('purchaseSuggestions', () => {
-  test('hanya part aktif berstatus Menipis, Habis, atau Minus, urut nama, dengan harga beli terakhir (R52)', () => {
-    const last = new Map<string, LastPurchase>([
-      ['tipis', { purchasePrice: 18000 }],
-      ['out', { purchasePrice: 30000 }],
-    ])
-    const result = purchaseSuggestions(PRODUCT, last)
-    expect(result.map((b) => [fullName(b.product), b.status, b.suggested, b.last?.purchasePrice ?? null])).toEqual([
-      ['Baut 10', 'negative', 3, null],
-      ['Busi C7HSA · NGK', 'low', 8, 18000],
-      ['Kampas Rem', 'out', 8, 30000],
+  test('hanya part aktif berstatus Menipis, Habis, atau Minus, urut nama', () => {
+    const result = purchaseSuggestions(PRODUCT)
+    expect(result.map((b) => [fullName(b.product), b.status, b.suggested])).toEqual([
+      ['Baut 10', 'negative', 3],
+      ['Busi C7HSA · NGK', 'low', 8],
+      ['Kampas Rem', 'out', 8],
     ])
   })
 })
@@ -48,7 +44,7 @@ test('ringkasan status untuk kartu filter', () => {
 })
 
 test('saran belanja untuk printer struk muat di 32 karakter', () => {
-  const lines = buildSuggestionText(purchaseSuggestions(PRODUCT, new Map()), 32, 'SARAN BELANJA 18/10/2026')
+  const lines = buildSuggestionText(purchaseSuggestions(PRODUCT), 32, 'SARAN BELANJA 18/10/2026')
   expect(lines.every((b) => b.length <= 32)).toBe(true)
   expect(lines.some((l) => /supplier/i.test(l))).toBe(false)
   expect(lines).toContain('Busi C7HSA · NGK')

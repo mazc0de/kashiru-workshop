@@ -76,7 +76,7 @@ export function deductOutboxStock(products: LocalProduct[], queue: Pick<OutboxSa
 }
 
 const PRODUCT_COLUMNS = `
-  id, tipe, nama, merek, category_id, satuan, bisa_pecahan, harga_jual, stok_min, harga_beli_avg, aktif,
+  id, tipe, nama, merek, category_id, satuan, bisa_pecahan, harga_jual, stok_min, harga_beli_avg, kode_harga_beli, aktif,
   categories ( nama ),
   stock_levels ( qty_on_hand ),
   product_barcodes ( barcode ),
@@ -95,6 +95,7 @@ export type ServerProductRow = {
   harga_jual: number
   stok_min: number
   harga_beli_avg: number
+  kode_harga_beli: string | null
   aktif: boolean
   categories: { nama: string } | null
   stock_levels: { qty_on_hand: number } | null
@@ -116,6 +117,7 @@ export function toLocalProduct(b: ServerProductRow): LocalProduct {
     stock: b.tipe === 'jasa' ? null : Number(b.stock_levels?.qty_on_hand ?? 0),
     minStock: Number(b.stok_min),
     avgCost: Number(b.harga_beli_avg),
+    purchaseCode: b.kode_harga_beli,
     barcodes: b.product_barcodes.map((x) => x.barcode).sort(),
     partNumbers: b.product_part_numbers.map((x) => x.kode_part).sort(),
     active: b.aktif,

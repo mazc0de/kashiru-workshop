@@ -5,7 +5,7 @@ import type { LocalProduct } from '@/products/product'
 
 const p = (o: Partial<LocalProduct>): LocalProduct => ({
   id: o.name ?? 'x', type: 'part', name: 'x', brand: null, categoryId: 'k', category: 'K', unit: 'pcs', allowsFraction: false,
-  sellingPrice: 1000, stock: 1, minStock: 0, avgCost: 0, barcodes: [], partNumbers: [], active: true, ...o,
+  sellingPrice: 1000, stock: 1, minStock: 0, avgCost: 0, purchaseCode: null, barcodes: [], partNumbers: [], active: true, ...o,
 })
 
 const LIST = [

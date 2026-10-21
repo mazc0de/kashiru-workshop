@@ -255,6 +255,7 @@ export type Database = {
           harga_beli_avg: number
           harga_jual: number
           id: string
+          kode_harga_beli: string | null
           merek: string | null
           nama: string
           satuan: string | null
@@ -269,6 +270,7 @@ export type Database = {
           harga_beli_avg?: number
           harga_jual: number
           id?: string
+          kode_harga_beli?: string | null
           merek?: string | null
           nama: string
           satuan?: string | null
@@ -283,6 +285,7 @@ export type Database = {
           harga_beli_avg?: number
           harga_jual?: number
           id?: string
+          kode_harga_beli?: string | null
           merek?: string | null
           nama?: string
           satuan?: string | null
@@ -1039,6 +1042,7 @@ export type Database = {
           p_kode_part?: Json
           p_stok_awal?: number
           p_harga_beli?: number
+          p_kode_harga_beli?: string
         }
         Returns: string
       }

@@ -72,7 +72,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="sales" replace /> },
           { path: 'sales', lazy: async () => ({ Component: (await import('@/reports/SalesReport')).SalesReport }) },
-          { path: 'profit', lazy: async () => ({ Component: (await import('@/reports/ProfitReport')).ProfitReport }) },
+          // Laba kotor dihapus (R64); alamat lama diarahkan ke Penjualan.
+          { path: 'profit', element: <Navigate to="../sales" replace /> },
           { path: 'mechanics', lazy: async () => ({ Component: (await import('@/reports/MechanicsReport')).MechanicsReport }) },
           { path: 'service-history', lazy: async () => ({ Component: (await import('@/reports/ServiceHistoryReport')).ServiceHistoryReport }) },
           { path: 'stock', lazy: async () => ({ Component: (await import('@/reports/StockReport')).StockReport }) },

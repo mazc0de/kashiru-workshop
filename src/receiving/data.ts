@@ -17,10 +17,10 @@ export type ReceivingSummary = {
   status: 'aktif' | 'void'
   account: string
   lineCount: number
-  total: number
 }
 
-const COLUMNS = 'id, nomor, tanggal_faktur, dibuat_pada, status, profiles!receipts_user_id_fkey ( nama ), receipt_items ( qty, harga_beli )'
+// Harga beli tidak dibaca lagi (R64): harga beli angka diganti Kode Harga Beli di part.
+const COLUMNS = 'id, nomor, tanggal_faktur, dibuat_pada, status, profiles!receipts_user_id_fkey ( nama ), receipt_items ( qty )'
 
 type ReceivingRow = {
   id: string
@@ -29,7 +29,7 @@ type ReceivingRow = {
   dibuat_pada: string
   status: string
   profiles: { nama: string } | null
-  receipt_items: { qty: number; harga_beli: number }[]
+  receipt_items: { qty: number }[]
 }
 
 function toSummary(r: ReceivingRow): ReceivingSummary {
@@ -41,7 +41,6 @@ function toSummary(r: ReceivingRow): ReceivingSummary {
     status: r.status === 'void' ? 'void' : 'aktif',
     account: r.profiles?.nama ?? '',
     lineCount: r.receipt_items.length,
-    total: r.receipt_items.reduce((s, i) => s + Math.round(Number(i.qty) * Number(i.harga_beli)), 0),
   }
 }
 
@@ -85,7 +84,7 @@ export type ReceivingDetail = ReceivingSummary & {
   voidReason: string | null
   voidedAt: string | null
   voidedBy: string | null
-  lines: { name: string; brand: string | null; unit: string | null; qty: number; purchasePrice: number }[]
+  lines: { name: string; brand: string | null; unit: string | null; qty: number }[]
 }
 
 export function useReceivingDetail(id: string | null) {
@@ -98,7 +97,7 @@ export function useReceivingDetail(id: string | null) {
           .from('receipts')
           .select(
             `${COLUMNS}, void_alasan, void_pada, pembatal:profiles!receipts_void_oleh_fkey ( nama ),
-             baris:receipt_items ( urutan, qty, harga_beli, products ( nama, merek, satuan ) )`,
+             baris:receipt_items ( urutan, qty, products ( nama, merek, satuan ) )`,
           )
           .eq('id', id!)
           .single(),
@@ -111,7 +110,6 @@ export function useReceivingDetail(id: string | null) {
         status: r.status === 'void' ? 'void' : 'aktif',
         account: r.profiles?.nama ?? '',
         lineCount: r.receipt_items.length,
-        total: r.receipt_items.reduce((s, i) => s + Math.round(Number(i.qty) * Number(i.harga_beli)), 0),
         voidReason: r.void_alasan,
         voidedAt: r.void_pada,
         voidedBy: r.pembatal?.nama ?? null,
@@ -122,7 +120,6 @@ export function useReceivingDetail(id: string | null) {
             brand: b.products?.merek ?? null,
             unit: b.products?.satuan ?? null,
             qty: Number(b.qty),
-            purchasePrice: Number(b.harga_beli),
           })),
       }
     },

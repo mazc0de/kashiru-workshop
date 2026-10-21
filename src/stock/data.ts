@@ -3,26 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { unwrap } from '@/lib/errors'
 import { refreshLocalProduct } from '@/lib/localCopy'
 import { supabase } from '@/lib/supabase'
-import type { Reason, LastPurchase } from '@/stock/stock'
-
-/** Harga beli terakhir per part (view last_purchase). */
-export function useLastPurchases() {
-  return useQuery({
-    queryKey: ['stock', 'last-purchase'],
-    queryFn: async (): Promise<Map<string, LastPurchase>> => {
-      const productMap = new Map<string, LastPurchase>()
-      for (let from = 0; ; from += 1000) {
-        const data = unwrap(
-          await supabase().from('last_purchase').select('product_id, harga_beli').order('product_id').range(from, from + 999),
-        )
-        for (const b of data) {
-          if (b.product_id) productMap.set(b.product_id, { purchasePrice: Number(b.harga_beli) })
-        }
-        if (data.length < 1000) return productMap
-      }
-    },
-  })
-}
+import type { Reason } from '@/stock/stock'
 
 export type StockCardEntry = {
   id: number
@@ -78,7 +59,6 @@ export async function adjustStock(options: {
   qty: number
   reason: Reason
   note: string
-  purchasePrice: number | null
 }): Promise<void> {
   unwrap(
     await supabase().rpc('adjust_stock', {
@@ -86,7 +66,6 @@ export async function adjustStock(options: {
       p_qty: options.qty,
       p_alasan: options.reason,
       p_keterangan: options.note || undefined,
-      p_harga_beli: options.purchasePrice ?? undefined,
     }),
   )
   await refreshLocalProduct(options.productId).catch(() => undefined)

@@ -20,6 +20,12 @@ test('ubah produk: setiap kolom dengan label Indonesia, nilai lama → baru', ()
   ).toEqual(['Harga jual: Rp 50.000 → Rp 52.000', 'Kategori: Oli → Busi', 'Bisa pecahan: Tidak → Ya', 'Stok minimum: 2 → 5'])
 })
 
+test('ubah kode harga beli tampil apa adanya; kosong menjadi tanda strip (R64)', () => {
+  expect(describeChanges({ action: 'ubah_produk', before: { kode_harga_beli: null }, after: { kode_harga_beli: 'ABGSK' } }, categories)).toEqual([
+    'Kode harga: – → ABGSK',
+  ])
+})
+
 test('void nota menampilkan alasan dan total; nomor dan status sudah tersirat', () => {
   expect(
     describeChanges({ action: 'void_nota', before: { nomor: 'KSR-20261019-0001', status: 'lunas', total: 52000 }, after: { status: 'void', alasan: 'Salah input' } }),

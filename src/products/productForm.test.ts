@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'vitest'
 
-import { diffList, EMPTY_FIELDS, fieldsFromProduct, validateProduct, priceWarning, unitOptions, COMMON_UNITS, type FormFields } from '@/products/productForm'
+import { diffList, EMPTY_FIELDS, fieldsFromProduct, validateProduct, unitOptions, COMMON_UNITS, type FormFields } from '@/products/productForm'
 
 const part = (partial: Partial<FormFields>): FormFields => ({ ...EMPTY_FIELDS, name: 'Oli MPX 1L', categoryId: 'k-oli', sellingPrice: '52.000', ...partial })
 const services = (partial: Partial<FormFields>): FormFields => ({ ...EMPTY_FIELDS, type: 'jasa', name: 'Servis rem', categoryId: 'k-jasa', sellingPrice: '35.000', ...partial })
 
 describe('validateProduct', () => {
-  test('part baru dengan stok awal dan harga beli', () => {
-    expect(validateProduct(part({ brand: ' AHM ', initialStock: '10', purchasePrice: '40.000', minStock: '3' }), true)).toEqual({
+  test('part baru dengan stok awal dan kode harga, dirapikan jadi kapital (R64)', () => {
+    expect(validateProduct(part({ brand: ' AHM ', initialStock: '10', purchaseCode: ' abgsk ', minStock: '3' }), true)).toEqual({
       ok: true,
       value: {
         type: 'part',
@@ -19,17 +19,24 @@ describe('validateProduct', () => {
         sellingPrice: 52000,
         minStock: 3,
         initialStock: 10,
-        purchasePrice: 40000,
+        purchaseCode: 'ABGSK',
       },
     })
   })
 
-  test('stok awal tanpa harga beli ditolak (PRD 4.2)', () => {
-    expect(validateProduct(part({ initialStock: '10' }), true)).toEqual({
+  test('kode harga opsional, stok awal tidak lagi wajib harga beli (R64)', () => {
+    const result = validateProduct(part({ initialStock: '10' }), true)
+    expect(result.ok && [result.value.initialStock, result.value.purchaseCode]).toEqual([10, null])
+  })
+
+  test('kode harga hanya huruf A-Z, tanpa batas panjang (R64)', () => {
+    expect(validateProduct(part({ purchaseCode: '45000' }), true)).toEqual({ ok: false, errors: { purchaseCode: 'Isi dengan kode harga (huruf), bukan angka.' } })
+    expect(validateProduct(part({ purchaseCode: 'AB GS' }), false)).toEqual({
       ok: false,
-      errors: { purchasePrice: 'Harga beli wajib diisi dan lebih dari Rp 0 kalau stok awal diisi' },
+      errors: { purchaseCode: 'Kode harga hanya boleh huruf A–Z, tanpa spasi atau tanda baca.' },
     })
-    expect(validateProduct(part({ initialStock: '10', purchasePrice: '0' }), true).ok).toBe(false)
+    const long = validateProduct(part({ purchaseCode: 'A'.repeat(40) }), false)
+    expect(long.ok && long.value.purchaseCode).toBe('A'.repeat(40))
   })
 
   test('stok awal 0 atau kosong berarti tanpa stok awal', () => {
@@ -44,22 +51,22 @@ describe('validateProduct', () => {
   })
 
   test('jasa tidak menyimpan merek, satuan, stok minimum, atau stok awal', () => {
-    const result = validateProduct(services({ brand: 'X', unit: 'pcs', minStock: '5', initialStock: '3', purchasePrice: '1000', allowsFraction: true }), true)
+    const result = validateProduct(services({ brand: 'X', unit: 'pcs', minStock: '5', initialStock: '3', purchaseCode: 'AB', allowsFraction: true }), true)
     expect(result).toEqual({
       ok: true,
-      value: { type: 'jasa', name: 'Servis rem', brand: null, categoryId: 'k-jasa', unit: null, allowsFraction: false, sellingPrice: 35000, minStock: 0, initialStock: null, purchasePrice: null },
+      value: { type: 'jasa', name: 'Servis rem', brand: null, categoryId: 'k-jasa', unit: null, allowsFraction: false, sellingPrice: 35000, minStock: 0, initialStock: null, purchaseCode: null },
     })
   })
 
   test('qty pecahan hanya untuk part bisa pecahan, maksimal 2 desimal', () => {
     expect(validateProduct(part({ minStock: '1,5' }), true)).toEqual({ ok: false, errors: { minStock: 'Stok minimum harus bilangan bulat' } })
-    const bulk = validateProduct(part({ allowsFraction: true, unit: 'liter', minStock: '2,5', initialStock: '12,5', purchasePrice: '30.000' }), true)
+    const bulk = validateProduct(part({ allowsFraction: true, unit: 'liter', minStock: '2,5', initialStock: '12,5' }), true)
     expect(bulk.ok && [bulk.value.minStock, bulk.value.initialStock]).toEqual([2.5, 12.5])
-    expect(validateProduct(part({ allowsFraction: true, initialStock: '1,555', purchasePrice: '1' }), true).ok).toBe(false)
+    expect(validateProduct(part({ allowsFraction: true, initialStock: '1,555' }), true).ok).toBe(false)
   })
 
   test('stok awal diabaikan saat mengubah produk lama', () => {
-    const result = validateProduct(part({ initialStock: '99', purchasePrice: '' }), false)
+    const result = validateProduct(part({ initialStock: '99' }), false)
     expect(result.ok && result.value.initialStock).toBe(null)
   })
 
@@ -73,15 +80,11 @@ describe('validateProduct', () => {
   })
 })
 
-test('peringatan kalau harga beli lebih tinggi dari harga jual, tanpa menghalangi', () => {
-  expect(priceWarning(part({ sellingPrice: '45.000', purchasePrice: '50.000' }))).toBe('Harga jual di bawah harga beli')
-  expect(priceWarning(part({ sellingPrice: '45.000', purchasePrice: '40.000' }))).toBeNull()
-})
 
 test('isian dari produk lama memakai format rupiah dan koma', () => {
   expect(
-    fieldsFromProduct({ type: 'part', name: 'Oli Curah', brand: null, categoryId: 'k', unit: 'liter', allowsFraction: true, sellingPrice: 125000, minStock: 2.5 }),
-  ).toMatchObject({ brand: '', sellingPrice: '125.000', minStock: '2,5' })
+    fieldsFromProduct({ type: 'part', name: 'Oli Curah', brand: null, categoryId: 'k', unit: 'liter', allowsFraction: true, sellingPrice: 125000, minStock: 2.5, purchaseCode: 'ABGSK' }),
+  ).toMatchObject({ brand: '', sellingPrice: '125.000', minStock: '2,5', purchaseCode: 'ABGSK' })
 })
 
 test('bedaDaftar mencari yang ditambah dan dihapus', () => {

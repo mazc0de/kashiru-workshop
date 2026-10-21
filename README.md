@@ -32,14 +32,14 @@ Satu instalasi untuk satu bengkel: satu project Supabase dan satu alamat aplikas
 | --- | --- |
 | **Kasir** | Scan barcode atau cari produk, **Katalog** part per kategori, **Jasa** dengan daftar jasa dan isian jasa manual, **Tambah ke keranjang** untuk menunda motor yang sedang diservis (dengan keterangan, dibuka lagi dari ikon keranjang di kanan atas), qty dengan tombol − / +, diskon per baris diketik langsung di tabel (rupiah atau %), diskon nota, bayar Tunai/QRIS/Transfer/EDC, cetak struk. Tetap jalan saat offline |
 | **Riwayat nota** | Cari per tanggal, nomor, nopol, atau pelanggan; cetak ulang (SALINAN); void nota; cetak ringkasan harian; daftar nota yang belum terkirim |
-| **Produk** | Part: banyak barcode dan kode part per part, barcode internal + cetak label, stok awal, "Simpan & berikutnya" untuk input cepat dengan scanner |
+| **Produk** | Part: banyak barcode dan kode part per part, barcode internal + cetak label, stok awal, **kode harga** (huruf rahasia pemilik, pengganti harga beli) dengan filter part yang belum punya kode, "Simpan & berikutnya" untuk input cepat dengan scanner |
 | **Jasa** | Daftar jasa dan tarif default-nya. Jasa yang belum terdaftar bisa diketik manual di kasir, hanya tercatat di nota |
 | **Label barcode** | Daftar semua barcode internal part aktif, cari/filter kategori, centang banyak part dengan jumlah label masing-masing, cetak sekaligus dalam satu gulungan |
 | **Stok** | Status Aman/Menipis/Habis/Minus, saran belanja (cetak/Excel), kartu stok per part, penyesuaian stok dengan alasan |
-| **Penerimaan** | Barang masuk: tanggal, cari/scan barang, qty, harga beli (otomatis terisi harga terakhir), barang bonus Rp 0, void penerimaan |
+| **Penerimaan** | Barang masuk: tanggal, cari/scan barang, qty, kode harga part (bisa diperbarui dari sini), void penerimaan |
 | **Opname** | Sesi penuh atau per kategori, hitung dengan scan atau lembar hitung, tinjau selisih + alasan, konfirmasi atau batalkan, ekspor PDF/Excel |
-| **Dashboard** | Omzet hari ini (part/jasa), laba kotor, jumlah nota dan kendaraan, grafik 30 hari, jumlah part Menipis/Habis/Minus, pengingat backup |
-| **Laporan** | Penjualan, Laba kotor, Jasa per mekanik, Riwayat servis per nopol, Stok (nilai persediaan, slow/fast-moving), Penerimaan, Opname. Filter periode, ekspor Excel dan PDF |
+| **Dashboard** | Omzet hari ini (part/jasa), jumlah nota dan kendaraan, grafik 30 hari, jumlah part Menipis/Habis/Minus, pengingat backup |
+| **Laporan** | Penjualan, Jasa per mekanik, Riwayat servis per nopol, Stok (stok per part, slow/fast-moving), Penerimaan, Opname. Filter periode, ekspor Excel dan PDF |
 | **Riwayat perubahan** | Semua perubahan data (harga, produk, void, penyesuaian, opname, akun, pengaturan), filter akun/periode/jenis aksi, tidak bisa diedit atau dihapus |
 | **Pengaturan** | Profil bengkel + logo, awalan nomor dokumen, ukuran kertas 58/80 mm, blind count opname, panduan dan uji scanner, backup manual, akun, logout otomatis, kategori, mekanik |
 
@@ -87,6 +87,7 @@ npm install
    | 8 | `supabase/migrations/20261019000008_backup_logs.sql` | Catatan backup |
    | 9 | `supabase/migrations/20261019000009_any_device_sales.sql` | Semua laptop bisa membuat nota |
    | 10 | `supabase/migrations/20261020000010_manual_services.sql` | Jasa manual di kasir |
+   | 11 | `supabase/migrations/20261021000011_purchase_price_code.sql` | Kode harga beli |
 
    File migrasi yang sudah dijalankan **tidak pernah diubah**. Perubahan skema berikutnya selalu berupa file baru.
 

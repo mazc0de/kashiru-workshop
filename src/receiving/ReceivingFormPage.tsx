@@ -9,7 +9,6 @@ import { Field } from '@/components/Field'
 import { Notice } from '@/components/Notice'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { formatNumber, formatRupiah } from '@/lib/format'
 import { db } from '@/lib/localCopy'
 import { useOnline } from '@/lib/online'
 import { useBarcodeScanner } from '@/lib/scanner'
@@ -19,22 +18,21 @@ import { findByBarcode, fullName, type LocalProduct } from '@/products/product'
 import { SearchBox } from '@/products/ProductSearchBox'
 import { NewBarcodeDialog } from '@/products/UnknownBarcodeDialog'
 import { saveReceiving } from '@/receiving/data'
-import { lineValue, validateReceiving, addBonusLine, addPartLine, type ReceivingLine } from '@/receiving/receiving'
-import { useLastPurchases } from '@/stock/data'
+import { purchaseCodeError } from '@/products/productForm'
+import { validateReceiving, addPartLine, type ReceivingLine } from '@/receiving/receiving'
 
 let counter = 0
 const newKey = () => `terima-${Date.now()}-${++counter}`
 
 /**
- * Penerimaan baru (PRD 4.4, R52): tanggal masuk, lalu cari atau scan barang. Scan menambah qty 1, harga beli
- * otomatis dari harga beli terakhir dan bisa diubah, barang bonus sebagai baris Rp 0 (R6). Tanpa supplier.
- * Mutasi dibukukan saat disimpan, bukan pada tanggal masuk.
+ * Penerimaan baru (PRD 4.4, R52, R64): tanggal masuk, lalu cari atau scan barang. Scan menambah qty 1. Tanpa
+ * supplier dan tanpa harga beli angka: setiap baris punya Kode harga part itu, yang kalau diubah memperbarui
+ * kode part. Mutasi dibukukan saat disimpan, bukan pada tanggal masuk.
  */
 export function ReceivingFormPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const online = useOnline()
-  const last = useLastPurchases()
   const products = useLiveQuery(() => db.products.toArray(), [], [] as LocalProduct[])
   const part = useMemo(() => products.filter((p) => p.type === 'part' && p.active), [products])
 
@@ -47,9 +45,8 @@ export function ReceivingFormPage() {
   const [newBarcode, setNewBarcode] = useState<string | null>(null)
   const searchInput = useRef<HTMLInputElement>(null)
 
-  const defaultPrice = (p: LocalProduct) => last.data?.get(p.id)?.purchasePrice ?? (p.avgCost ? Math.round(p.avgCost) : null)
   const addToCart = (p: LocalProduct) => {
-    setLines((b) => addPartLine(b, p, defaultPrice(p), newKey()).lines)
+    setLines((b) => addPartLine(b, p, newKey()).lines)
     setQuery('')
     setMessage(null)
     playSuccess()
@@ -78,11 +75,9 @@ export function ReceivingFormPage() {
     mutationFn: saveReceiving,
     onSuccess: async (result) => {
       await Promise.all([queryClient.invalidateQueries({ queryKey: ['receiving'] }), queryClient.invalidateQueries({ queryKey: ['products'] }), queryClient.invalidateQueries({ queryKey: ['stock'] })])
-      navigate('/receiving', { replace: true, state: { message: `Penerimaan ${result.number} tersimpan. Stok dan harga beli rata-rata sudah diperbarui.` } })
+      navigate('/receiving', { replace: true, state: { message: `Penerimaan ${result.number} tersimpan. Stok dan kode harga sudah diperbarui.` } })
     },
   })
-
-  const total = lines.reduce((s, b) => s + (lineValue(b) ?? 0), 0)
 
   return (
     <>
@@ -121,26 +116,25 @@ export function ReceivingFormPage() {
             <tr className="h-11 text-sm text-muted-foreground">
               <th className="px-4 font-normal">{lines.length ? `${lines.length} baris` : 'Part'}</th>
               <th className="w-[120px] px-3 text-right font-normal">Qty</th>
-              <th className="w-[160px] px-3 text-right font-normal">Harga beli</th>
-              <th className="w-[140px] px-3 text-right font-normal">Jumlah</th>
-              <th className="w-[150px]" />
+              <th className="w-[220px] px-3 font-normal">Kode harga</th>
+              <th className="w-[60px]" />
             </tr>
           </thead>
           <tbody>
             {lines.length === 0 && (
               <tr className="border-t border-rule">
-                <td colSpan={5} className="px-4 py-3 text-muted-foreground">Scan barcode part yang datang. Setiap scan menambah qty 1.</td>
+                <td colSpan={4} className="px-4 py-3 text-muted-foreground">Scan barcode part yang datang. Setiap scan menambah qty 1.</td>
               </tr>
             )}
-            {lines.map((b, i) => {
-              const value = lineValue(b)
+            {lines.map((b) => {
+              const codeError = purchaseCodeError(b.code)
               return (
                 <tr key={b.key} className={cn('border-t border-rule', lineErrors[b.key] && 'bg-pill-negative/40')}>
                   <td className="px-4 py-2 align-top">
                     <span className="block">{fullName(b)}</span>
                     <span className="block text-sm text-muted-foreground">
-                      {b.bonus ? 'Barang bonus' : b.unit}
-                      {lineErrors[b.key] && <span className="text-negative"> · {lineErrors[b.key]}</span>}
+                      {b.unit}
+                      {lineErrors[b.key] && lineErrors[b.key] !== codeError && <span className="text-negative"> · {lineErrors[b.key]}</span>}
                     </span>
                   </td>
                   <td className="px-3 py-2 align-top">
@@ -148,24 +142,19 @@ export function ReceivingFormPage() {
                   </td>
                   <td className="px-3 py-2 align-top">
                     <Input
-                      aria-label={`Harga beli ${b.name}`}
-                      inputMode="numeric"
-                      className="h-10 text-right"
-                      value={b.price}
-                      onChange={(e) => updateLine(b.key, { price: e.target.value })}
-                      onBlur={() => {
-                        const v = b.price.replace(/[.\s]/g, '')
-                        if (/^\d+$/.test(v)) updateLine(b.key, { price: formatNumber(Number(v)) })
-                      }}
+                      aria-label={`Kode harga ${b.name}`}
+                      aria-invalid={Boolean(codeError)}
+                      placeholder="Belum ada"
+                      autoComplete="off"
+                      autoCapitalize="characters"
+                      spellCheck={false}
+                      className="h-10 font-mono uppercase"
+                      value={b.code}
+                      onChange={(e) => updateLine(b.key, { code: e.target.value.toUpperCase() })}
                     />
+                    {codeError && <span className="mt-1 block text-sm text-negative">{codeError}</span>}
                   </td>
-                  <td className="px-3 py-2 text-right align-top leading-10">{value === null ? '–' : formatNumber(value)}</td>
                   <td className="px-2 py-2 text-right align-top whitespace-nowrap">
-                    {!b.bonus && (
-                      <Button variant="ghost" title="Tambah baris barang bonus Rp 0" onClick={() => setLines((lines) => addBonusLine(lines, i, newKey()))}>
-                        + Bonus
-                      </Button>
-                    )}
                     <Button variant="ghost" size="icon" aria-label={`Hapus ${b.name}`} onClick={() => setLines((lines) => lines.filter((x) => x.key !== b.key))}>
                       <X className="size-4" strokeWidth={1.75} />
                     </Button>
@@ -183,9 +172,7 @@ export function ReceivingFormPage() {
             {save.error?.message ?? message}
           </span>
         )}
-        <span className="text-muted-foreground">
-          Total <span className="text-lg font-bold text-foreground">{formatRupiah(total)}</span>
-        </span>
+        <span className="text-sm text-muted-foreground">Kode harga yang diubah ikut memperbarui kode part.</span>
         <Button variant="outline" render={<Link to="/receiving" />} nativeButton={false}>
           Batal
         </Button>

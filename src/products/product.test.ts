@@ -14,6 +14,7 @@ function product(partial: Partial<LocalProduct> & Pick<LocalProduct, 'id' | 'nam
     stock: 5,
     minStock: 0,
     avgCost: 8000,
+    purchaseCode: null,
     barcodes: [],
     partNumbers: [],
     active: true,

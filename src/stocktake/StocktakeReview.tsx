@@ -8,24 +8,23 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { exportExcel, exportPdf, type ExportData } from '@/lib/export'
-import { formatNumber, formatQty, formatRupiah, formatDateTime, parseRupiah } from '@/lib/format'
+import { formatQty, formatDateTime } from '@/lib/format'
 import { useSettings } from '@/lib/settings'
 import { PRODUCT_LIST_KEY } from '@/products/data'
 import { fullName } from '@/products/product'
 import { REASON_LABELS, type Reason } from '@/stock/stock'
-import { saveReason, savePurchasePrice, saveDecision, confirmStocktake, reviewKey, useStocktakeReview, type StocktakeSession } from '@/stocktake/data'
+import { saveReason, saveDecision, confirmStocktake, reviewKey, useStocktakeReview, type StocktakeSession } from '@/stocktake/data'
 import { SessionHeader } from '@/stocktake/StocktakePage'
 import { isReasonComplete, canConfirm, sessionScope, DECISION_LABELS, SESSION_STATUS_LABELS, summarizeStocktake, type StocktakeLine, type StocktakeSummary } from '@/stocktake/stocktake'
 
-const signedRupiah = (n: number) => (n > 0 ? `+${formatRupiah(n)}` : formatRupiah(n))
 const signedQty = (n: number) => (n > 0 ? `+${formatQty(n)}` : formatQty(n))
 
 function SummaryCards({ r }: { r: StocktakeSummary }) {
   const cards = [
     { label: 'Dihitung', value: `${r.dihitung} dari ${r.total}`, sub: null, invalid: false },
     { label: 'Belum dihitung', value: String(r.undecided), sub: r.assumedZero + r.dilewati ? `${r.assumedZero} dianggap 0 · ${r.dilewati} dilewati` : null, invalid: r.undecided > 0 },
-    { label: 'Selisih lebih', value: `${r.overCount} part`, sub: signedRupiah(r.overValue), invalid: false },
-    { label: 'Selisih kurang', value: `${r.shortCount} part`, sub: signedRupiah(r.shortValue), invalid: false },
+    { label: 'Selisih lebih', value: `${r.overCount} part`, sub: null, invalid: false },
+    { label: 'Selisih kurang', value: `${r.shortCount} part`, sub: null, invalid: false },
   ]
   return (
     <div className="mt-6 grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -76,7 +75,7 @@ function useSet() {
 
 /**
  * Tinjau (PRD 4.5): part yang belum dihitung diputuskan dianggap 0 atau dilewati, selisih diberi alasan
- * (bisa sekaligus untuk baris terpilih), selisih lebih tanpa harga rata-rata diberi harga beli.
+ * (bisa sekaligus untuk baris terpilih). Tanpa harga beli dan selisih rupiah sejak R64.
  */
 export function ReviewTab({ session, canEdit }: { session: StocktakeSession; canEdit: boolean }) {
   const queryClient = useQueryClient()
@@ -88,7 +87,6 @@ export function ReviewTab({ session, canEdit }: { session: StocktakeSession; can
   const uncountedSelection = useSet()
   const varianceSelection = useSet()
   const [dialog, setDialog] = useState<'reason' | 'confirm' | null>(null)
-  const needsPriceColumn = variance.some((b) => b.needsPurchasePrice)
   const reload = () => queryClient.invalidateQueries({ queryKey: reviewKey(session.id) })
 
   const decision = useMutation({
@@ -106,7 +104,7 @@ export function ReviewTab({ session, canEdit }: { session: StocktakeSession; can
   const varianceIds = variance.map((b) => b.productId)
   const missing = [
     r.undecided > 0 && `${r.undecided} part belum dihitung: pilih dianggap 0 atau dilewati.`,
-    r.incomplete > 0 && `${r.incomplete} selisih belum diberi alasan atau harga beli.`,
+    r.incomplete > 0 && `${r.incomplete} selisih belum diberi alasan.`,
   ].filter(Boolean)
 
   return (
@@ -206,15 +204,13 @@ export function ReviewTab({ session, canEdit }: { session: StocktakeSession; can
                 <th className="w-[100px] px-3 text-right font-normal">Stok saat hitung</th>
                 <th className="w-[90px] px-3 text-right font-normal">Hitung</th>
                 <th className="w-[90px] px-3 text-right font-normal">Selisih</th>
-                <th className="w-[130px] px-3 text-right font-normal">Rupiah</th>
                 <th className="w-[200px] px-3 font-normal">Alasan</th>
-                {needsPriceColumn && <th className="w-[150px] px-3 text-right font-normal">Harga beli</th>}
               </tr>
             </thead>
             <tbody>
               {variance.length === 0 && (
                 <tr className="border-t border-rule">
-                  <td colSpan={needsPriceColumn ? 8 : 7} className="px-4 py-3 text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-3 text-muted-foreground">
                     Tidak ada selisih.
                   </td>
                 </tr>
@@ -236,7 +232,6 @@ export function ReviewTab({ session, canEdit }: { session: StocktakeSession; can
                     <td className="px-3 text-right text-muted-foreground">{formatQty(b.decision === 'dianggap_nol' ? b.currentStock : (b.stockAtCount ?? 0))}</td>
                     <td className="px-3 text-right">{formatQty(b.countedQty ?? 0)}</td>
                     <td className={cn('px-3 text-right font-medium', (b.variance ?? 0) < 0 ? 'text-negative' : 'text-positive')}>{signedQty(b.variance ?? 0)}</td>
-                    <td className="px-3 text-right">{b.needsPurchasePrice && b.purchasePriceInput === null ? '–' : signedRupiah(b.varianceValue ?? 0)}</td>
                     <td className="max-w-0 truncate px-3">
                       {b.reason ? (
                         <span title={b.reasonNote ?? undefined}>
@@ -247,11 +242,6 @@ export function ReviewTab({ session, canEdit }: { session: StocktakeSession; can
                         <span className="text-negative">Belum diisi</span>
                       )}
                     </td>
-                    {needsPriceColumn && (
-                      <td className="px-3 py-1.5">
-                        {b.needsPurchasePrice && <PurchasePriceInput key={`${b.productId}-${b.purchasePriceInput}`} session={session} lines={b} canEdit={canEdit} />}
-                      </td>
-                    )}
                   </tr>
                 )
               })}
@@ -289,36 +279,6 @@ export function ReviewTab({ session, canEdit }: { session: StocktakeSession; can
         </DialogContent>
       </Dialog>
     </>
-  )
-}
-
-/** Harga beli untuk selisih lebih pada part tanpa harga rata-rata; disimpan saat pindah kolom (PRD 4.5). */
-function PurchasePriceInput({ session, lines, canEdit }: { session: StocktakeSession; lines: StocktakeLine; canEdit: boolean }) {
-  const queryClient = useQueryClient()
-  const [value, setValue] = useState(lines.purchasePriceInput === null ? '' : formatNumber(lines.purchasePriceInput))
-  const save = useMutation({
-    mutationFn: (price: number) => savePurchasePrice(session.id, lines.productId, price),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: reviewKey(session.id) }),
-  })
-  const price = parseRupiah(value)
-  const invalid = value.trim() !== '' && (price === null || price <= 0)
-  return (
-    <Input
-      aria-label={`Harga beli ${lines.name}`}
-      inputMode="numeric"
-      placeholder="Wajib"
-      title={save.error?.message ?? (invalid ? 'Isi harga beli lebih dari Rp 0' : undefined)}
-      className={cn('h-10 text-right', (invalid || save.isError) && 'border-negative')}
-      disabled={!canEdit || save.isPending}
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={() => {
-        if (price !== null && price > 0 && price !== lines.purchasePriceInput) {
-          setValue(formatNumber(price))
-          save.mutate(price)
-        }
-      }}
-    />
   )
 }
 
@@ -405,11 +365,11 @@ function ConfirmDialog({ session, r, close }: { session: StocktakeSession; r: St
       <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-y-1">
         <dt className="text-muted-foreground">Selisih lebih</dt>
         <dd className="text-right">
-          {r.overCount} part · {signedRupiah(r.overValue)}
+          {r.overCount} part
         </dd>
         <dt className="text-muted-foreground">Selisih kurang</dt>
         <dd className="text-right">
-          {r.shortCount} part · {signedRupiah(r.shortValue)}
+          {r.shortCount} part
         </dd>
         <dt className="text-muted-foreground">Dilewati, stok tidak diubah</dt>
         <dd className="text-right">{r.dilewati} part</dd>
@@ -431,7 +391,6 @@ function ConfirmDialog({ session, r, close }: { session: StocktakeSession; r: St
 // Hasil sesi yang sudah ditutup -------------------------------------------------------
 
 function exportData(session: StocktakeSession, lines: StocktakeLine[], workshopName: string | undefined): ExportData<StocktakeLine> {
-  const total = lines.reduce((s, b) => s + (b.varianceValue ?? 0), 0)
   return {
     fileName: `opname-${session.number}`,
     title: `Hasil opname ${session.number}`,
@@ -448,12 +407,10 @@ function exportData(session: StocktakeSession, lines: StocktakeLine[], workshopN
       { title: 'Stok saat hitung', value: (b) => b.stockAtCount, kind: 'qty', width: 10 },
       { title: 'Qty hitung', value: (b) => b.countedQty, kind: 'qty', width: 10 },
       { title: 'Selisih', value: (b) => b.variance, kind: 'qty', width: 9 },
-      { title: 'Selisih (Rp)', value: (b) => b.varianceValue, kind: 'rupiah', width: 13 },
       { title: 'Alasan', value: (b) => (b.reason ? REASON_LABELS[b.reason] : ''), width: 12 },
       { title: 'Keterangan', value: (b) => b.reasonNote ?? '', width: 24 },
     ],
     rows: lines,
-    total: session.status === 'dikonfirmasi' ? ['Total', null, null, null, null, null, null, null, total, null, null] : undefined,
   }
 }
 
@@ -504,21 +461,20 @@ export function ClosedSession({ session }: { session: StocktakeSession }) {
               <th className="w-[100px] px-3 text-right font-normal">Stok saat hitung</th>
               <th className="w-[90px] px-3 text-right font-normal">Hitung</th>
               {dikonfirmasi && <th className="w-[90px] px-3 text-right font-normal">Selisih</th>}
-              {dikonfirmasi && <th className="w-[130px] px-3 text-right font-normal">Rupiah</th>}
               {dikonfirmasi && <th className="w-[200px] px-3 font-normal">Alasan</th>}
             </tr>
           </thead>
           <tbody>
             {review.isPending && (
               <tr className="border-t border-rule">
-                <td colSpan={7} className="px-4 py-3 text-muted-foreground">
+                <td colSpan={6} className="px-4 py-3 text-muted-foreground">
                   Memuat hasil…
                 </td>
               </tr>
             )}
             {review.isSuccess && lines.length === 0 && (
               <tr className="border-t border-rule">
-                <td colSpan={7} className="px-4 py-3 text-muted-foreground">
+                <td colSpan={6} className="px-4 py-3 text-muted-foreground">
                   Tidak ada part yang dihitung di sesi ini.
                 </td>
               </tr>
@@ -537,7 +493,6 @@ export function ClosedSession({ session }: { session: StocktakeSession }) {
                     {b.variance === null ? '–' : signedQty(b.variance)}
                   </td>
                 )}
-                {dikonfirmasi && <td className="px-3 text-right">{b.varianceValue === null || b.variance === 0 ? '–' : signedRupiah(b.varianceValue)}</td>}
                 {dikonfirmasi && (
                   <td className="max-w-0 truncate px-3">
                     {b.reason ? REASON_LABELS[b.reason] : '–'}

@@ -157,6 +157,29 @@ Lalu user mengubah alurnya: _"saat user membuka menu kasir user masukkan barang 
 | K24 | Sebutan isian layar | Saran: "keranjang" hanya untuk yang ditunda; layar tanpa nama khusus, tombol Kosongkan | Ya | GLOSSARY: Keranjang |
 | K25 | Keterangan sama | (a) ditolak; (b) boleh; (c) digabung. Saran: (a) | Ya | R63 |
 
+## Sesi 21/10/2026: Kode Harga Beli (H1–H19)
+
+Permintaan user: _"saya ingin menggantinya hanya dengan kode huruf yang hanya sang owner tahu, jadi orang tidak tahu harga belinya"_. Hasilnya R64 dan [ADR 0007](./docs/adr/0007-purchase-price-code.md).
+
+| No | Topik | Yang ditanyakan / rekomendasi | Jawaban user | Dampak |
+| --- | --- | --- | --- | --- |
+| H1 | Arti kode huruf | Saran: sandi angka dengan kata kunci di Kashiru, laporan tetap jalan | Awalnya ya, lalu **dikoreksi**: _"yang tau kode harga hanya saya sendiri dan tidak dimasukkan ke kashiru"_ | Kode disimpan apa adanya |
+| H2 | Letak kode | Saran: semua input dan tampilan harga beli | Belum dijawab, digantikan H15 | — |
+| H3 | Dua isian (kode atau rupiah) | User mengusulkan menambah isian; saran: pilih salah satu tanpa konversi | _"jangan tampilkan konversi, tulis apa adanya saja"_ | Isian angka hilang |
+| H5 | Hapus harga beli rata-rata | User mengusulkan menghapus kolom; saran: tetap pakai kode | Ya, kode | — |
+| H7 | Pengecualian database | (a) kolom teks baru; (b) simpan di laptop; (c) batal. Saran: (a) | (a) | Pengecualian R62 khusus fitur ini |
+| H8 | Kode per part atau per penerimaan | Saran: satu kode per Part | Ya | Kolom di `products` |
+| H10 | Penerimaan | Saran: kolom angka dihapus | **Ditambah**: _"di penerimaan juga bisa update kode harga"_. Isian per baris terisi otomatis, boleh kosong, memperbarui kode part; void tidak mengembalikan kode | R64 |
+| H11 | Pengisi angka | User bertanya kenapa 0; saran: 0 sebagai pengisi kolom angka wajib | Digantikan H12 | — |
+| H12 | Nasib kolom angka | User mengusulkan menghapus kolom; (a) tetap tidak dipakai; (b) angka lama dikosongkan; (c) hapus kolom. Saran: (a) + backup dulu | (a) | ADR 0007 |
+| H13 | Kode wajib atau opsional | Saran: opsional + tanda "Belum ada kode harga" | Ya | Stok awal tanpa harga beli |
+| H14 | Aturan penulisan | Saran: A–Z, otomatis kapital, angka ditolak, 1–10 huruf | Ya, **tanpa batas panjang** | — |
+| H15 | Tempat tampil | Saran: form produk, halaman part, daftar Produk, Penerimaan; tidak di Kasir, kartu stok, opname, status stok | Ya | R64 |
+| H16 | Yang disembunyikan | Saran: laba kotor (laporan + Dashboard), nilai persediaan, semua kolom harga beli/HPP/nilai, peringatan di bawah harga beli | Ya | R64 |
+| H17 | Penyesuaian stok dan opname | Saran: kewajiban harga beli dihapus di fungsi database | Ya | R64 |
+| H18 | Memperbarui data lama | Saran: pemberitahuan jumlah + filter "Belum ada kode harga" di daftar Produk, part aktif saja | Ya | R64 |
+| H19 | Siapa boleh mengubah | Saran: semua akun, tercatat di Riwayat perubahan | Ya | — |
+
 ## Koreksi tanpa pertanyaan
 
 Dua koreksi diterapkan tanpa ditanyakan, karena tidak ada alternatif yang masuk akal:

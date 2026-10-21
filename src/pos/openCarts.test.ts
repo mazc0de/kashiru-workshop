@@ -19,7 +19,7 @@ import type { LocalProduct } from '@/products/product'
 
 const OIL: LocalProduct = {
   id: 'oli', type: 'part', name: 'Oli MPX 1L', brand: 'AHM', categoryId: 'k', category: 'K', unit: 'pcs', allowsFraction: false,
-  sellingPrice: 52000, stock: 1, minStock: 0, avgCost: 40000, barcodes: [], partNumbers: [], active: true,
+  sellingPrice: 52000, stock: 1, minStock: 0, avgCost: 40000, purchaseCode: null, barcodes: [], partNumbers: [], active: true,
 }
 const ROLLER: LocalProduct = { ...OIL, id: 'roller', name: 'Roller set', brand: null, sellingPrice: 80000 }
 

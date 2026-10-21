@@ -9,7 +9,7 @@ import { Notice } from '@/components/Notice'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { formatNumber, formatQty, formatRupiah, formatDate, formatDateTime } from '@/lib/format'
+import { formatQty, formatDate, formatDateTime } from '@/lib/format'
 import { useOnline } from '@/lib/online'
 import { useReceivingList, useReceivingDetail, voidReceiving, type ReceivingDetail } from '@/receiving/data'
 
@@ -52,7 +52,9 @@ export function ReceivingPage() {
               <th className="px-4 font-normal">Penerimaan</th>
               <th className="w-[140px] px-4 text-right font-normal">Tanggal masuk</th>
               <th className="w-[80px] px-4 text-right font-normal">Baris</th>
-              <th className="w-[150px] px-4 text-right font-normal">Total</th>
+              <th className="w-[110px] px-4 text-right font-normal">
+                <span className="sr-only">Status</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -79,10 +81,8 @@ export function ReceivingPage() {
                 <td className="px-4 text-right text-muted-foreground">{formatDate(`${r.receivedDate}T12:00:00+07:00`)}</td>
                 <td className="px-4 text-right text-muted-foreground">{r.lineCount}</td>
                 <td className="px-4 text-right">
-                  {r.status === 'void' ? (
+                  {r.status === 'void' && (
                     <span className="inline-flex h-6 items-center rounded-sm bg-pill-negative px-2 text-sm text-pill-negative-ink">Void</span>
-                  ) : (
-                    formatNumber(r.total)
                   )}
                 </td>
               </tr>
@@ -131,19 +131,13 @@ function DetailDialog({ id, close }: { id: string; close: () => void }) {
           <li key={i} className="flex justify-between gap-3 py-1">
             <span className="min-w-0">
               <span className="block truncate">{b.brand ? `${b.name} · ${b.brand}` : b.name}</span>
-              <span className="block text-sm text-muted-foreground">
-                {formatQty(b.qty)} {b.unit} x {formatNumber(b.purchasePrice)}
-                {b.purchasePrice === 0 && ' · bonus'}
-              </span>
             </span>
-            <span className="flex-none">{formatNumber(Math.round(b.qty * b.purchasePrice))}</span>
+            <span className="flex-none">
+              {formatQty(b.qty)} <span className="text-sm text-muted-foreground">{b.unit}</span>
+            </span>
           </li>
         ))}
       </ul>
-      <div className="flex justify-between text-lg">
-        <span>Total</span>
-        <span className="font-bold">{formatRupiah(r.total)}</span>
-      </div>
       <DialogFooter>
         <Button variant="outline" onClick={close}>
           Tutup
@@ -181,7 +175,7 @@ function FormVoid({ receiving, onDone }: { receiving: ReceivingDetail; onDone: (
       <DialogHeader>
         <DialogTitle>Void {receiving.number}?</DialogTitle>
         <DialogDescription>
-          Seluruh penerimaan dibatalkan dan stok part dikurangi lagi, boleh sampai minus. Harga beli rata-rata dihitung ulang seolah penerimaan ini tidak pernah ada. HPP nota yang sudah dibuat tidak berubah. Setelah itu input ulang penerimaan yang benar.
+          Seluruh penerimaan dibatalkan dan stok part dikurangi lagi, boleh sampai minus. Kode harga part tidak kembali ke kode lama. Setelah itu input ulang penerimaan yang benar.
         </DialogDescription>
       </DialogHeader>
       <Field id="void-receiving-reason" label="Alasan void">

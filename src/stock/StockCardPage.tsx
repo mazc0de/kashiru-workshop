@@ -9,7 +9,7 @@ import { Notice } from '@/components/Notice'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { formatNumber, formatQty, formatRupiah, formatDateTime, parseQty, parseRupiah } from '@/lib/format'
+import { formatQty, formatDateTime, parseQty } from '@/lib/format'
 import { useOnline } from '@/lib/online'
 import { PRODUCT_LIST_KEY, productDetailKey, useProductDetail, type ProductDetail } from '@/products/data'
 import { fullName } from '@/products/product'
@@ -41,7 +41,6 @@ export function StockCardPage() {
               <span className={cn('text-foreground', (p.stock ?? 0) < 0 && 'text-negative')}>
                 {formatQty(p.stock ?? 0)} {p.unit}
               </span>
-              · harga beli rata-rata {formatRupiah(p.avgCost)}
               <StockStatusPill stock={p.stock ?? 0} minStock={p.minStock} />
             </p>
           )}
@@ -68,7 +67,6 @@ export function StockCardPage() {
               <th className="w-[90px] px-4 text-right font-normal">Masuk</th>
               <th className="w-[90px] px-4 text-right font-normal">Keluar</th>
               <th className="w-[90px] px-4 text-right font-normal">Saldo</th>
-              <th className="w-[110px] px-4 text-right font-normal">HPP</th>
               <th className="w-[120px] px-4 font-normal">Akun</th>
             </tr>
           </thead>
@@ -93,7 +91,6 @@ export function StockCardPage() {
                   <td className="px-4 text-right">{m.qtyIn === null ? '' : formatQty(m.qtyIn)}</td>
                   <td className="px-4 text-right">{m.qtyOut === null ? '' : formatQty(m.qtyOut)}</td>
                   <td className={cn('px-4 text-right font-medium', m.balance < 0 && 'text-negative')}>{formatQty(m.balance)}</td>
-                  <td className="px-4 text-right text-muted-foreground">{formatNumber(m.cogs)}</td>
                   <td className="truncate px-4 text-muted-foreground">{m.account ?? '–'}</td>
                 </tr>
               )
@@ -117,20 +114,17 @@ function AdjustmentDialog({ product, onDone }: { product: ProductDetail; onDone:
   const [qty, setQty] = useState('')
   const [reason, setReason] = useState<Reason | ''>('')
   const [note, setNote] = useState('')
-  const [purchasePrice, setPurchasePrice] = useState('')
 
   const parsed = parseQty(qty)
   const fractional = product.allowsFraction
   const qtyError = !qty.trim() ? null : parsed === null || parsed <= 0 ? 'Isi qty lebih dari 0' : !fractional && !Number.isInteger(parsed) ? 'Qty harus bilangan bulat' : null
-  const needsPrice = direction === 1 && product.avgCost === 0
-  const price = parseRupiah(purchasePrice)
-  const complete =
-    parsed !== null && !qtyError && reason !== '' && (reason !== 'lainnya' || note.trim() !== '') && (!needsPrice || (price !== null && price > 0))
+  // Tanpa harga beli sejak R64: Kashiru tidak tahu nilai rupiah harga beli.
+  const complete = parsed !== null && !qtyError && reason !== '' && (reason !== 'lainnya' || note.trim() !== '')
   const newStock = parsed !== null && !qtyError ? (product.stock ?? 0) + direction * parsed : null
 
   const save = useMutation({
     mutationFn: () =>
-      adjustStock({ productId: product.id, qty: direction * parsed!, reason: reason as Reason, note: note.trim(), purchasePrice: needsPrice ? price : null }),
+      adjustStock({ productId: product.id, qty: direction * parsed!, reason: reason as Reason, note: note.trim() }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['stock'] }),
@@ -195,11 +189,6 @@ function AdjustmentDialog({ product, onDone }: { product: ProductDetail; onDone:
       <Field id="adjust-note" label={reason === 'lainnya' ? 'Keterangan (wajib)' : 'Keterangan'}>
         <Input id="adjust-note" value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-      {needsPrice && (
-        <Field id="adjust-price" label="Harga beli per satuan" hint="Wajib, karena part ini belum punya harga beli rata-rata.">
-          <Input id="adjust-price" inputMode="numeric" className="text-right" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} />
-        </Field>
-      )}
       {newStock !== null && (
         <p className="text-muted-foreground">
           Stok {formatQty(product.stock ?? 0)} menjadi <span className={cn('text-foreground', newStock < 0 && 'text-negative')}>{formatQty(newStock)}</span> {product.unit}.

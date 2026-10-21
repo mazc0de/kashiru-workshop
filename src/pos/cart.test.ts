@@ -20,7 +20,7 @@ import type { LocalProduct } from '@/products/product'
 function product(partial: Partial<LocalProduct> & Pick<LocalProduct, 'id' | 'name'>): LocalProduct {
   return {
     type: 'part', brand: null, categoryId: 'k', category: 'K', unit: 'pcs', allowsFraction: false, sellingPrice: 10000,
-    stock: 5, minStock: 0, avgCost: 8000, barcodes: [], partNumbers: [], active: true, ...partial,
+    stock: 5, minStock: 0, avgCost: 8000, purchaseCode: null, barcodes: [], partNumbers: [], active: true, ...partial,
   }
 }
 

@@ -40,7 +40,7 @@ Saat mekanik minta kampas rem untuk motor A, klik **ikon keranjang** di kanan at
 
 **Jasa manual** hanya tercatat di nota itu dan tidak masuk menu Jasa. Tarifnya boleh Rp 0, dan bisa diubah lagi di layar seperti jasa lain. Di laporan, jasa manual masuk omzet jasa dengan kategori "Jasa manual". Kalau jasa yang sama sering dipakai, tambahkan saja di menu Jasa.
 
-**Diskon per barang** diketik langsung di kolom Diskon: `2000` berarti Rp 2.000 untuk baris itu, `10%` berarti 10 persen, kosongkan untuk menghapus. Tekan Enter atau klik di luar isian untuk menerapkan. Kalau isiannya salah, muncul pesan merah dan diskon lama tetap berlaku. Kalau harganya jadi di bawah harga beli, baris diberi tanda kuning.
+**Diskon per barang** diketik langsung di kolom Diskon: `2000` berarti Rp 2.000 untuk baris itu, `10%` berarti 10 persen, kosongkan untuk menghapus. Tekan Enter atau klik di luar isian untuk menerapkan. Kalau isiannya salah, muncul pesan merah dan diskon lama tetap berlaku.
 
 Stok boleh minus; nota tidak pernah tertahan karena stok sistem.
 
@@ -63,6 +63,8 @@ Kalau scan tidak masuk ke keranjang, buka Pengaturan → **Scanner** dan coba **
 
 - Tambah part dari menu Produk, dan jasa dari menu **Jasa**. Part bisa punya beberapa barcode dan kode part. Part tanpa barcode pabrik bisa dibuatkan **barcode internal** lalu dicetak labelnya.
 - Produk tidak pernah dihapus; nonaktifkan kalau tidak dijual lagi.
+- **Kode harga** menggantikan harga beli. Isi dengan huruf (A–Z) yang artinya hanya diketahui pemilik. Kashiru menyimpan dan menampilkannya apa adanya, tanpa tahu nilai rupiahnya. Karena itu laba kotor dan nilai persediaan tidak ada di Kashiru. Kode tampil di form produk, daftar Produk, dan Penerimaan, tetapi tidak di Kasir.
+- Part lama yang belum punya kode ditandai **Belum ada**. Di daftar Produk, klik **Tampilkan** pada pemberitahuan (atau filter **Belum ada kode harga**), buka part-nya, isi Kode harga, lalu simpan.
 - Menu **Label barcode** menampilkan semua barcode internal part aktif. Centang part yang labelnya mau ditempel, isi jumlah label per part, lalu **Cetak**. Semua label keluar dalam satu gulungan dan kertas dipotong sekali di akhir.
 
 ## Stok
@@ -73,7 +75,7 @@ Kalau scan tidak masuk ke keranjang, buka Pengaturan → **Scanner** dan coba **
 
 ## Penerimaan barang
 
-Isi tanggal masuk (bawaan hari ini), lalu cari atau scan barangnya. Setiap scan menambah qty 1, atau ketik qty-nya. Harga beli otomatis terisi harga beli terakhir; ubah hanya kalau harganya berubah. Lalu simpan. Barang bonus diisi harga Rp 0. Penerimaan tidak bisa diedit; kalau salah, void lalu buat lagi.
+Isi tanggal masuk (bawaan hari ini), lalu cari atau scan barangnya. Setiap scan menambah qty 1, atau ketik qty-nya. Kolom **Kode harga** terisi kode part saat ini; ganti kalau harga dari supplier berubah, maka kode part ikut berubah saat penerimaan disimpan. Lalu simpan. Penerimaan tidak bisa diedit; kalau salah, void lalu buat lagi. Void tidak mengembalikan kode harga lama.
 
 ## Opname
 
@@ -84,8 +86,8 @@ Isi tanggal masuk (bawaan hari ini), lalu cari atau scan barangnya. Setiap scan 
 
 ## Dashboard dan Laporan
 
-- **Dashboard**: omzet hari ini (part dan jasa), laba kotor, jumlah nota dan kendaraan, grafik 30 hari, dan jumlah part Menipis/Habis/Minus.
-- **Laporan**: Penjualan, Laba kotor, Jasa per mekanik, Riwayat servis (per nopol), Stok, Penerimaan, dan Opname. Pilih periode di atas; semua laporan bisa diekspor ke **Excel** dan **PDF**.
+- **Dashboard**: omzet hari ini (part dan jasa), jumlah nota dan kendaraan, grafik 30 hari, dan jumlah part Menipis/Habis/Minus.
+- **Laporan**: Penjualan, Jasa per mekanik, Riwayat servis (per nopol), Stok, Penerimaan, dan Opname. Pilih periode di atas; semua laporan bisa diekspor ke **Excel** dan **PDF**.
 - Omzet adalah yang dibayar pelanggan setelah semua diskon. Nota dan penerimaan yang di-void tidak dihitung.
 
 ## Riwayat perubahan

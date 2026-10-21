@@ -17,6 +17,8 @@ export type LocalProduct = {
   stock: number | null
   minStock: number
   avgCost: number
+  /** Kode Harga Beli (R64); null kalau belum diisi atau jasa. Tidak ditampilkan di Kasir. */
+  purchaseCode: string | null
   barcodes: string[]
   partNumbers: string[]
   active: boolean

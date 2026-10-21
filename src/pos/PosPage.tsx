@@ -20,7 +20,6 @@ import {
   setLineDiscount,
   stepQty,
   removeLine,
-  lineCogs,
   toCalcLines,
   qtyInCart,
   refreshPrices,
@@ -300,7 +299,6 @@ function PosScreen() {
             editPrice={(i, price) => update((k) => setServicePrice(k, i, price))}
             remove={(i) => update((k) => removeLine(k, i))}
             finishPriceEdit={focusSearch}
-            lineCosts={cart.lines.map((b) => lineCogs(b, productOf(b)?.avgCost))}
             setDiscount={(i, d) => update((k) => setLineDiscount({ ...k, selected: i }, i, d))}
             stepUp={(i) => {
               const k = currentDraft()
@@ -371,7 +369,6 @@ function PosScreen() {
               title="Diskon nota"
               base={calc.subtotal}
               discount={cart.saleDiscount}
-              totalCogs={null}
               cancel={closeDialog}
               save={(d) => {
                 update((k) => ({ ...k, saleDiscount: d }))
@@ -500,7 +497,6 @@ function CartTable({
   finishPriceEdit,
   stepUp,
   stepDown,
-  lineCosts,
   setDiscount,
 }: {
   lines: CartLine[]
@@ -515,8 +511,6 @@ function CartTable({
   /** Tombol + dan − di kolom Qty (R54). */
   stepUp: (i: number) => void
   stepDown: (i: number) => void
-  /** HPP x qty tiap baris part (null untuk jasa), untuk peringatan diskon di bawah harga beli. */
-  lineCosts: (number | null)[]
   setDiscount: (i: number, d: Discount) => void
 }) {
   if (lines.length === 0) {
@@ -544,8 +538,6 @@ function CartTable({
           {lines.map((b, i) => {
             const h = calc.lines[i]
             const active = i === selected
-            const cost = lineCosts[i]
-            const belowCost = b.discount !== null && cost !== null && h.net < cost
             return (
               <tr
                 key={flash?.key === b.key ? `${b.key}-${flash.n}` : b.key}
@@ -563,9 +555,6 @@ function CartTable({
                     </span>
                   )}
                   {b.inactive && <span className="block text-sm text-negative">Produk sudah nonaktif. Hapus barisnya sebelum bayar.</span>}
-                  {belowCost && (
-                    <span className="mt-1 inline-flex rounded-sm bg-pill-warning px-1.5 text-sm text-pill-warning-ink">Di bawah harga beli ({formatRupiah(cost)})</span>
-                  )}
                 </td>
                 <td className="px-0 py-0.5 align-top">
                   <div className="flex items-center justify-center">

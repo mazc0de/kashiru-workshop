@@ -1,4 +1,4 @@
-import { lineAmount, type CalcLine, type Discount } from '@/pos/calculate'
+import type { CalcLine, Discount } from '@/pos/calculate'
 import type { LocalProduct } from '@/products/product'
 
 // Keranjang di layar Kasir (PRD 4.6). Fungsi murni: setiap aksi mengembalikan keranjang baru.
@@ -189,10 +189,4 @@ export function refreshPrices(k: Cart, copies: Map<string, LocalProduct>): Cart 
 export function pricesChanged(k: Cart, copies: Map<string, LocalProduct>): boolean {
   const refreshed = refreshPrices(k, copies)
   return refreshed.lines.some((b, i) => b.price !== k.lines[i].price || b.inactive !== k.lines[i].inactive)
-}
-
-/** HPP x qty baris part, untuk peringatan diskon di bawah harga beli. */
-export function lineCogs(b: CartLine, avgCost: number | undefined): number | null {
-  if (b.type !== 'part' || avgCost === undefined) return null
-  return lineAmount(b.qty, Math.round(avgCost))
 }

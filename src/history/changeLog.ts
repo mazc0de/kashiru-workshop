@@ -77,6 +77,7 @@ const FIELD_LABELS: Record<string, string> = {
   bisa_pecahan: 'Bisa pecahan',
   harga_jual: 'Harga jual',
   stok_min: 'Stok minimum',
+  kode_harga_beli: 'Kode harga',
   aktif: 'Status',
   telepon: 'Telepon',
   email: 'Email',

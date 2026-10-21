@@ -71,6 +71,11 @@ Harga beli rata-rata sebuah Part pada saat terjual. HPP disimpan di setiap baris
 _Di kode_: cogs; harga beli rata-rata avg cost
 _Hindari_: modal, harga pokok, cost
 
+**Kode Harga Beli**:
+Harga beli Part yang ditulis pemilik sebagai huruf kapital, misalnya ABGSK, supaya orang lain tidak tahu harga belinya. Arti kodenya hanya diketahui pemilik; Kashiru menyimpan dan menampilkannya apa adanya tanpa tahu nilai rupiahnya.
+_Di kode_: purchase price code
+_Hindari_: sandi, kode modal, harga rahasia
+
 **Sesi Opname**:
 Penghitungan fisik stok Part, penuh atau per kategori. Hasilnya baru mengubah stok setelah dikonfirmasi, dan selisihnya dibandingkan dengan stok sistem pada waktu tiap Part dihitung.
 _Di kode_: stocktake

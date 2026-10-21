@@ -54,7 +54,7 @@ Semua modul di bawah dikerjakan dalam satu fase dan dirilis bersamaan.
 | Scan barcode (Zebra DS2208) | Mode keyboard USB HID, tanpa driver |
 | Barcode internal & label | Angka urut Code128 untuk part tanpa barcode pabrik, dicetak di printer struk |
 | Cetak struk (Kassen BTP-3050) | 58mm atau 80mm sesuai pengaturan, cetak ulang "SALINAN" |
-| Laporan & dashboard | Penjualan, laba kotor, jasa per mekanik, riwayat servis per nopol, stok, penerimaan, opname |
+| Laporan & dashboard | Penjualan, jasa per mekanik, riwayat servis per nopol, stok, penerimaan, opname (laba kotor dihapus, R64) |
 | Riwayat perubahan | Tidak bisa diedit atau dihapus |
 | Mode offline | Hanya untuk membuat nota, sinkron otomatis ([ADR 0002](./docs/adr/0002-offline-sales-only.md)) |
 | Backup | Backup manual dari Pengaturan (R44). Backup otomatis lewat GitHub Actions ditunda ([ADR 0005](./docs/adr/0005-supabase-free-github-actions-backup.md)) |
@@ -102,7 +102,8 @@ Part dikelola di menu **Produk**, jasa di menu **Jasa** (masing-masing dengan da
 - **Satuan** satu per produk. Qty pecahan (mis. 1,5 liter atau 2,3 meter) hanya boleh untuk part bertanda "bisa pecahan", maksimal 2 angka di belakang koma. Qty ditampilkan tanpa nol di belakang (0,8, bukan 0,80).
 - **Harga jual** part wajib lebih dari Rp 0. Tarif jasa boleh Rp 0 untuk jasa gratis, misalnya cek kendaraan. Part gratis diberikan lewat diskon 100%, supaya laba kotor tetap menunjukkan nilai part yang diberikan.
 - **Harga beli** tidak diisi di form produk, kecuali saat part dibuat. Harga beli rata-rata dihitung dari stok awal dan penerimaan.
-- **Stok awal**: saat membuat part baru, form menyediakan kolom stok awal dan harga beli. Keduanya boleh kosong, tetapi kalau stok awal diisi, harga beli wajib diisi dan harus lebih dari Rp 0. Kashiru lalu membuat mutasi "stok awal", dan harga belinya menjadi harga beli rata-rata pertama. Kalau stok awal kosong, harga beli rata-rata diambil dari penerimaan pertama. Kalau harga beli lebih tinggi dari harga jual, muncul peringatan "Harga jual di bawah harga beli", tapi part tetap bisa disimpan. Setelah part dibuat, stok hanya berubah lewat nota, penerimaan, opname, atau penyesuaian stok.
+- **Stok awal**: saat membuat part baru, form menyediakan kolom stok awal (opsional) dan Kashiru membuat mutasi "stok awal". Sejak R64 stok awal tidak lagi disertai harga beli angka. Setelah part dibuat, stok hanya berubah lewat nota, penerimaan, opname, atau penyesuaian stok.
+- **Kode Harga Beli** (R64, [ADR 0007](./docs/adr/0007-purchase-price-code.md)): pengganti harga beli angka. Satu kode per part, berupa huruf A–Z yang artinya hanya diketahui pemilik dan tidak pernah dimasukkan ke Kashiru. Huruf kecil otomatis jadi kapital, angka dan tanda baca ditolak ("Isi dengan kode harga (huruf), bukan angka."), tanpa batas panjang, opsional. Diisi dan diubah dari form produk (baru dan edit) atau dari Penerimaan, ditampilkan apa adanya di form produk, sublabel halaman part, dan kolom daftar Produk, tetapi tidak di Kasir, kartu stok, opname, dan status stok. Part aktif tanpa kode ditandai "Belum ada"; daftar Produk menampilkan jumlahnya dan filter **Belum ada kode harga**. Semua akun boleh mengubah kode, dan setiap perubahan tercatat di Riwayat perubahan. Karena Kashiru tidak tahu nilai rupiah harga beli, laba kotor, HPP, nilai persediaan, dan peringatan di bawah harga beli dihapus dari aplikasi; kolom angka lama di database tetap ada dan diisi 0 untuk data baru.
 - **Input data awal manual dengan scanner**: scan barcode part yang belum dikenal, lalu form "Produk baru" terbuka dengan barcode sudah terisi. Isi data, lalu tekan **Simpan & berikutnya**, dan fokus kembali ke scan. Tipe dan kategori dipertahankan untuk produk berikutnya, supaya input beruntun satu kategori lebih cepat. Part tanpa barcode dibuat tanpa barcode, lalu langsung diberi barcode internal dari form yang sama.
 - **Produk tidak bisa dihapus**, hanya dinonaktifkan, karena nota lama masih merujuk ke produk itu. Part boleh dinonaktifkan walaupun stoknya bukan 0; dialog konfirmasi menampilkan peringatan "Stok masih 5", dan stoknya dibiarkan apa adanya (tetap terhitung di nilai persediaan, tetapi tidak muncul di kasir, pencarian, dan opname penuh). Produk nonaktif bisa diaktifkan lagi.
 - Mengubah harga jual di master meminta konfirmasi dan tercatat di riwayat perubahan.
@@ -141,11 +142,10 @@ Stok dihitung dari buku mutasi (ledger), bukan angka yang diedit langsung, sehin
 Penerimaan adalah satu-satunya jalan stok masuk selain stok awal dan penyesuaian.
 
 - **Tanpa supplier** (R52): penerimaan hanya mencatat tanggal masuk dan barangnya. Supplier dan nomor faktur supplier tidak dipakai lagi; data supplier lama tetap tersimpan di database.
-- **Satu penerimaan** berisi nomor (`TRM-YYYYMMDD-0001`), tanggal masuk, dan baris part (qty dan harga beli).
+- **Satu penerimaan** berisi nomor (`TRM-YYYYMMDD-0001`), tanggal masuk, dan baris part (qty dan Kode harga, R64).
 - **Tanggal masuk** default hari ini dan boleh diisi tanggal mundur. Kolom ini hanya keterangan dan dipakai untuk laporan penerimaan per periode. Mutasi stok dan perhitungan harga rata-rata selalu dibukukan pada waktu penerimaan disimpan, sehingga kartu stok selalu urut dan HPP nota yang sudah dibuat tidak berubah.
-- Baris diisi dengan **scan** (setiap scan menambah qty 1) atau dengan mengetik qty. Harga beli per baris otomatis terisi harga beli terakhir dan bisa diubah.
-- **Barang bonus** dicatat sebagai baris terpisah dengan harga beli Rp 0, misalnya "Oli MPX, qty 1, Rp 0", dan ikut dihitung ke rata-rata tertimbang (lihat 4.3). Di dalam satu penerimaan, baris Rp 0 dibukukan setelah baris yang berharga, sehingga urutan scan tidak memengaruhi hasil.
-- **Saat disimpan**, setiap baris membuat mutasi "beli", dan harga beli rata-rata dihitung ulang.
+- Baris diisi dengan **scan** (setiap scan menambah qty 1) atau dengan mengetik qty. Sejak R64 tidak ada harga beli angka dan tidak ada baris barang bonus: setiap baris punya isian **Kode harga** yang terisi kode part saat ini dan boleh kosong. Kode yang diubah memperbarui kode part saat penerimaan disimpan (tidak disimpan per penerimaan); void tidak mengembalikan kode lama.
+- **Saat disimpan**, setiap baris membuat mutasi "beli" dengan harga beli 0 sebagai pengisi kolom lama.
 - **Penerimaan tidak pernah diedit.** Kalau salah, penerimaan di-**void**: seluruh penerimaan dibatalkan, alasan wajib diisi, perlu konfirmasi, dan tercatat di riwayat perubahan. Void membuat mutasi "void beli". Stok boleh jadi minus karenanya. HPP di nota yang sudah dibuat sebelumnya tidak diubah. Setelah itu penerimaan diinput ulang dengan benar.
 - Penerimaan wajib online.
 
@@ -321,7 +321,7 @@ Ganti oli berikutnya: 21.000 km
 
 **Omzet** di dashboard dan semua laporan adalah yang dibayar pelanggan, setelah diskon baris dan diskon nota. Omzet part dan jasa dipisah memakai alokasi diskon nota per baris, jadi jumlah keduanya sama dengan total nota. Laba kotor = omzet − HPP; jasa tidak punya HPP. Laporan penjualan menampilkan total diskon sebagai kolom tersendiri (R28).
 
-- Omzet hari ini (part dan jasa terpisah) dan laba kotor hari ini.
+- Omzet hari ini (part dan jasa terpisah). Laba kotor dihapus sejak R64.
 - Pemberitahuan kalau backup terakhir lebih dari 7 hari lalu atau belum pernah ada (R47).
 - Jumlah nota dan jumlah kendaraan (nopol berbeda).
 - Jumlah part Menipis, Habis, dan Minus. Setiap angka bisa diklik ke layar Stok dengan filter itu; tab Status stok responsif untuk HP (R36).
@@ -330,17 +330,16 @@ Ganti oli berikutnya: 21.000 km
 
 **Laporan (dengan filter periode)**
 
-Satu menu Laporan berisi 7 laporan sebagai tab (dropdown di HP). Filter periode dipakai bersama dan tersimpan di alamat: Hari ini, Kemarin, 7 hari terakhir, Bulan ini (default), Bulan lalu, atau Pilih tanggal. Periode memakai tanggal WIB: tanggal nota untuk penjualan, tanggal masuk untuk penerimaan, dan tanggal konfirmasi untuk opname. Riwayat servis tidak memakai periode. Di laporan Stok, nilai persediaan dan slow-moving selalu saat ini, hanya fast-moving yang mengikuti periode (R33).
+Satu menu Laporan berisi 6 laporan sebagai tab (Laba kotor dihapus sejak R64) (dropdown di HP). Filter periode dipakai bersama dan tersimpan di alamat: Hari ini, Kemarin, 7 hari terakhir, Bulan ini (default), Bulan lalu, atau Pilih tanggal. Periode memakai tanggal WIB: tanggal nota untuk penjualan, tanggal masuk untuk penerimaan, dan tanggal konfirmasi untuk opname. Riwayat servis tidak memakai periode. Di laporan Stok, stok per part dan slow-moving selalu saat ini, hanya fast-moving yang mengikuti periode (R33).
 
 | Laporan | Isi |
 | --- | --- |
 | Penjualan | Ringkasan (jumlah nota, omzet part, omzet jasa, total diskon, total), per hari, per kategori, per metode bayar, dan daftar nota. Nota void ditandai dan tidak dihitung |
-| Laba kotor | Ringkasan (omzet, HPP, laba kotor, margin), per hari, per kategori, per produk (part dan jasa, urut laba terbesar): (harga − diskon baris − alokasi diskon nota) − HPP |
 | Jasa per mekanik | Jumlah nota dan total omzet jasa per mekanik, dengan baris "Tanpa mekanik" |
 | Riwayat servis | Semua nota untuk satu nopol, terbaru di atas: tanggal, nomor, mekanik, catatan servis, rincian part/jasa, total. Nota void ditandai |
-| Stok | Nilai persediaan (stok × harga beli rata-rata; stok minus dihitung 0 dan ditandai "perlu dicek", part tanpa harga beli rata-rata ditandai, R30) total, per kategori, dan per part dengan tautan ke kartu stok; slow-moving; fast-moving |
-| Penerimaan | Ringkasan (jumlah dan total nilai) dan daftar penerimaan per periode tanggal masuk. Penerimaan void ditandai dan tidak dihitung |
-| Opname | Sesi yang dikonfirmasi dalam periode: cakupan, part berselisih, selisih lebih, kurang, dan bersih dalam rupiah, serta total selisih per alasan dalam qty dan rupiah. Sesi batal tidak dihitung |
+| Stok | Jumlah part aktif dan part minus ("perlu dicek"), stok per part urut kategori dengan tautan ke kartu stok; slow-moving (urut stok terbanyak); fast-moving (qty, omzet, stok). Tanpa nilai rupiah sejak R64 |
+| Penerimaan | Ringkasan (jumlah penerimaan dan baris) dan daftar penerimaan per periode tanggal masuk, tanpa nilai rupiah (R64). Penerimaan void ditandai dan tidak dihitung |
+| Opname | Sesi yang dikonfirmasi dalam periode: cakupan dan part berselisih, serta total selisih per alasan dalam qty, tanpa rupiah (R64). Sesi batal tidak dihitung |
 
 - Semua laporan bisa diekspor ke **Excel** (satu sheet per bagian) dan **PDF** (bagian berurutan) (R34). File dibuat di browser lalu diunduh, tidak lewat dialog cetak, sehingga cara kerjanya sama di laptop kasir yang memakai kiosk printing dan di HP. Berlaku juga untuk lembar hitung dan hasil opname (R22).
 - **Ringkasan harian** untuk tanggal mana pun bisa dicetak ke printer struk dari Riwayat nota, memakai tanggal yang sedang dipilih. Isinya jumlah nota, omzet part dan jasa, total per metode bayar, dan nota void (nota bertanggal hari itu yang sudah di-void, jumlah dan totalnya), tanpa hitungan kas (R32).

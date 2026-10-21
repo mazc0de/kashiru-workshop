@@ -307,7 +307,7 @@ function FormVoid({ sale, onDone }: { sale: SaleDetail; onDone: () => void }) {
       <DialogHeader>
         <DialogTitle>Void {sale.number}?</DialogTitle>
         <DialogDescription>
-          Seluruh nota dibatalkan ({formatRupiah(sale.total)}). Stok part kembali hari ini dengan HPP dari nota asal. Pengembalian uang ke pelanggan tidak dicatat. Perbaikan dilakukan dengan membuat nota baru yang benar.
+          Seluruh nota dibatalkan ({formatRupiah(sale.total)}). Stok part kembali hari ini. Pengembalian uang ke pelanggan tidak dicatat. Perbaikan dilakukan dengan membuat nota baru yang benar.
         </DialogDescription>
       </DialogHeader>
       <Field id="void-reason" label="Alasan void">

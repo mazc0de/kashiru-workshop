@@ -76,6 +76,8 @@ export type ProductDetail = {
   avgCost: number
   active: boolean
   stock: number | null
+  /** Kode Harga Beli (R64); null kalau belum diisi atau jasa. */
+  purchaseCode: string | null
   barcodes: ProductBarcode[]
   partNumbers: ProductPartNumber[]
 }
@@ -89,7 +91,7 @@ export function useProductDetail(id: string | null) {
         await supabase()
           .from('products')
           .select(
-            'id, tipe, nama, merek, category_id, satuan, bisa_pecahan, harga_jual, stok_min, harga_beli_avg, aktif, stock_levels ( qty_on_hand ), product_barcodes ( id, barcode, jenis ), product_part_numbers ( id, kode_part, jenis )',
+            'id, tipe, nama, merek, category_id, satuan, bisa_pecahan, harga_jual, stok_min, harga_beli_avg, kode_harga_beli, aktif, stock_levels ( qty_on_hand ), product_barcodes ( id, barcode, jenis ), product_part_numbers ( id, kode_part, jenis )',
           )
           .eq('id', id!)
           .single(),
@@ -107,6 +109,7 @@ export function useProductDetail(id: string | null) {
         avgCost: Number(b.harga_beli_avg),
         active: b.aktif,
         stock: b.tipe === 'jasa' ? null : Number(b.stock_levels?.qty_on_hand ?? 0),
+        purchaseCode: b.kode_harga_beli,
         barcodes: b.product_barcodes
           .map((x) => ({ id: x.id, barcode: x.barcode, kind: x.jenis === 'internal' ? ('internal' as const) : ('pabrik' as const) }))
           .sort((x, y) => x.barcode.localeCompare(y.barcode)),
@@ -142,7 +145,7 @@ export async function createProduct(
       p_barcodes: barcodes,
       p_kode_part: partNumbers.map((k) => ({ kode_part: k.code, jenis: k.kind })),
       p_stok_awal: value.initialStock ?? undefined,
-      p_harga_beli: value.purchasePrice ?? undefined,
+      p_kode_harga_beli: value.purchaseCode ?? undefined,
     }),
   )
   if (createInternal) unwrap(await supabase().rpc('create_internal_barcode', { p_product_id: id }))
@@ -169,6 +172,7 @@ export async function saveProductChanges(
         bisa_pecahan: value.allowsFraction,
         harga_jual: value.sellingPrice,
         stok_min: value.minStock,
+        kode_harga_beli: value.purchaseCode,
       })
       .eq('id', existing.id),
   )

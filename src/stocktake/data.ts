@@ -150,10 +150,6 @@ export async function saveReason(stocktakeId: string, productIds: string[], reas
   )
 }
 
-export async function savePurchasePrice(stocktakeId: string, productId: string, price: number): Promise<void> {
-  unwrap(await supabase().rpc('set_opname_purchase_price', { p_opname_id: stocktakeId, p_product_id: productId, p_harga_beli: price }))
-}
-
 export async function confirmStocktake(id: string): Promise<{ number: string; part_selisih: number }> {
   const result = unwrap(await supabase().rpc('confirm_opname', { p_opname_id: id })) as { number: string; part_selisih: number }
   await reloadLocalCopy().catch(() => undefined)
