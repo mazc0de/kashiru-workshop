@@ -12,6 +12,7 @@ const EXAMPLE: ReceiptData = {
   cashier: 'Rina',
   plate: 'B 1234 XYZ',
   customer: 'Pak Budi',
+  description: 'Vario hitam',
   mechanic: 'Andi',
   serviceNote: 'Ganti oli berikutnya: 21.000 km',
   lines: [
@@ -42,6 +43,7 @@ describe('buildReceipt', () => {
       'Kasir: Rina',
       'Nopol: B 1234 XYZ',
       'Plg  : Pak Budi',
+      'Ket  : Vario hitam',
       'Mek  : Andi',
       divider,
       'PART',
@@ -64,6 +66,11 @@ describe('buildReceipt', () => {
     ])
   })
 
+  test('struk tersimpan sebelum ada keterangan tetap dicetak tanpa baris Ket', () => {
+    const { description: _, ...old } = EXAMPLE
+    expect(buildReceipt(old, 48).some((b) => b.startsWith('Ket'))).toBe(false)
+  })
+
   test('setiap baris muat di kertas 58 mm (32 karakter)', () => {
     const lines = buildReceipt({ ...EXAMPLE, lines: [...EXAMPLE.lines, { type: 'jasa', name: 'Servis CVT lengkap dan ganti roller', brand: null, qty: 1, price: 150000, amount: 150000, discount: 0 }] }, 32)
     expect(lines.every((b) => b.length <= 32)).toBe(true)
@@ -71,7 +78,7 @@ describe('buildReceipt', () => {
   })
 
   test('baris kosong tidak dicetak, metode non-tunai tanpa kembalian', () => {
-    const lines = buildReceipt({ ...EXAMPLE, plate: null, customer: null, mechanic: null, serviceNote: null, saleDiscount: 0, method: 'qris', cash: 125000, change: 0 }, 48)
+    const lines = buildReceipt({ ...EXAMPLE, plate: null, customer: null, description: null, mechanic: null, serviceNote: null, saleDiscount: 0, method: 'qris', cash: 125000, change: 0 }, 48)
     expect(lines.some((b) => b.startsWith('Nopol') || b.startsWith('Plg') || b.startsWith('Mek') || b.startsWith('Diskon nota') || b.startsWith('Kembali'))).toBe(false)
     expect(lines).toContain(`QRIS${spaces(34)}Rp 125.000`)
   })

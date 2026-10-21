@@ -107,6 +107,56 @@ Claude sempat menyatakan sesi selesai. User bertanya _"apakah kamu tidak ada yg 
 | Q57 | Perubahan data dari HP pemilik | Saran: laptop memeriksa perubahan setiap 1 menit | **Saran ditolak**: "tidak ada kasus seperti itu" | Tanpa pemeriksaan berkala. Data master hanya diubah di laptop |
 | Q58 | File konteks sesi | (a) ganti nama GLOSSARY; (b) log sesi terpisah; (c) gabung | (b) | File ini |
 
+## Sesi 21/10/2026: banyak keranjang di Kasir (K1–K17)
+
+Studi kasus dari user: _"motor A ganti oli dulu (di scan di kasir) lalu mau nambah ganti kampas rem (di scan) jadi agar tidak lupa di data dulu"_. Tahan keranjang (F6) sudah mencakup kasus ini, tetapi bolak-baliknya dianggap repot. Hasilnya R57–R60 di rencana implementasi.
+
+| No | Topik | Yang ditanyakan / rekomendasi | Jawaban user | Dampak |
+| --- | --- | --- | --- | --- |
+| K1 | Yang kurang dari tahan keranjang | (a) sudah cukup; (b) keranjang tiap motor selalu terlihat; (c) bisa dibuka dari laptop lain. Saran: (b) | (b), **ditambah**: wajib ada keterangan (nopol, pemilik, atau jenis/merek/warna kendaraan) | R57 |
+| K2 | Kapan keterangan wajib | Saran: saat keranjang ditinggalkan, bukan sebelum scan pertama, supaya pembeli langsung tetap cepat | Ya | R57 |
+| K3 | Isian keterangan | Saran: isian baru "Kendaraan", cukup satu dari nopol/pelanggan/kendaraan | Ya, lalu **diubah** (lihat K6) | — |
+| K4 | Kendaraan tersimpan di nota | Saran: ya, dicetak dan tampil di riwayat | Ya | R58 |
+| K6 | Hubungan dengan nopol dan pelanggan | User: _"sepertinya field nya 1 saja yaitu keterangan"_, dicetak di struk. Saran: nopol dan pelanggan tetap, keterangan isian ketiga, salah satu cukup; jendela pindah keranjang hanya berisi Keterangan | Ya. **Isian Kendaraan dibatalkan** | GLOSSARY: Keterangan Nota |
+| K5 | Letak daftar keranjang | (a) tab di atas tabel; (b) kolom kiri. Saran: (a) | Ya | R57 |
+| K7 | Setelah bayar | Saran: kembali ke keranjang kosong, bukan tab sebelah, supaya scan berikutnya tidak masuk ke motor lain | Ya | R57 |
+| K8 | Pintasan pindah tab | Saran: F6 membuka daftar keranjang | **Saran ditolak**: _"hilangkan fitur hot keys di semua karena tidak berguna di aplikasi ini"_ | R60 |
+| K8b | Batas penghapusan pintasan | Semua F-key, ↑/↓, + / −, Delete, Esc-kosongkan; tetap scanner, Enter/↑/↓ di kolom cari, Enter/Esc/Tab di jendela | Ya | R60 |
+| K9 | Membuang keranjang batal | Saran: tombol Kosongkan keranjang di bawah tabel, bukan × di tab | Ya | R57 |
+| K10 | Pembaruan harga | Saran: saat tab diklik dan sekali lagi saat Bayar | Ya | R57 |
+| K11 | Letak di struk | Saran: `Ket  :` di bawah `Plg` | Ya | R58 |
+| K12 | Isi otomatis | Saran: keterangan terisi dari nota terakhir nopol yang sama | Ya | R58 |
+| K13 | Riwayat nota | Saran: tampil dan bisa dicari | Ya | R58 |
+| K14 | Stok di keranjang lain | Saran: peringatan ikut menghitung keranjang lain, tanpa stok ditahan (ADR 0003 tetap) | Ya | R59 |
+| K15 | Katalog | Saran: stok sistem + "n di keranjang lain" | Ya | R59 |
+| K16 | Tulisan Enter/Esc di tombol | Saran: dihapus juga | Ya | R60 |
+| K17 | Urutan tab dan keranjang kosong | Saran: urut waktu dibuat, satu keranjang kosong ditandai + Baru, tab "Baru" untuk keranjang berisi tanpa pengenal, baris tab disembunyikan kalau hanya ada keranjang kosong | Ya | R57 |
+
+Setelah tab dibangun, user meminta tampilan lain: _"ada ikon keranjang saja lalu saat di klik muncul modal, lalu didalamnya ada list di sebelah kiri dan saat di klik sebelah kanan menampilkan list barang nya apa saja"_. **Baris tab diganti** (R61).
+
+| No | Topik | Yang ditanyakan / rekomendasi | Jawaban user | Dampak |
+| --- | --- | --- | --- | --- |
+| K18 | Pindah ke keranjang dari modal | Saran: panel kanan hanya-lihat, tombol Buka keranjang; ubah isi tetap di layar Kasir | Ya | R61 |
+| K19 | Letak ikon, label aktif, + Baru | Saran: ikon di samping judul + label aktif + Baru di layar utama | **Diubah**: _"taruh tombolnya di kanan atas saja seperti keranjang di marketplace"_ | Memicu K19b |
+| K19b | Rincian ikon kanan atas | Saran: angka merah jumlah keranjang tidak kosong; label aktif cukup dari panel Data nota; + Keranjang baru hanya di modal | Ya | R61 |
+| K20 | Isi modal | Saran: kiri label/baris/total/● sedang dibuka; kanan data nota, barang, total; pilihan awal = keranjang aktif; Buka keranjang / Tutup | Ya | R61 |
+
+Lalu user memberi tahu: _"aplikasi ini sudah live production, saya ingin kamu jangan otak atik dan menabah file atau merubah/delete di supabase"_. Migrasi 11 belum pernah dijalankan dan dibatalkan.
+
+| No | Topik | Yang ditanyakan / rekomendasi | Jawaban user | Dampak |
+| --- | --- | --- | --- | --- |
+| K21 | Keterangan tanpa database | (a) hanya di keranjang dan struk; (b) digabung ke catatan servis; (c) dihapus. Saran: (a) | (a): _"untuk fitur keranjang ini hanya simpan di lokal saja"_ | R62. K4, K12, K13 batal |
+
+Lalu user mengubah alurnya: _"saat user membuka menu kasir user masukkan barang ke keranjang lalu ada tombol masukkan ke keranjang, jika di klik maka akan mengosongkan dan memasukkan ke dalam keranjang dan memulai untuk memasukkan data baru lagi ke kasir"_. Diperjelas dengan studi kasus: motor A ganti oli, motor B datang ganti roller, kasir mengisi keterangan untuk motor A lalu layar bersih untuk motor B. Hasilnya R63, yang menggantikan model "keranjang aktif" K5–K20.
+
+| No | Topik | Yang ditanyakan / rekomendasi | Jawaban user | Dampak |
+| --- | --- | --- | --- | --- |
+| K22b | Keterangan saat Tambah ke keranjang | Saran: selalu muncul dan wajib, diusulkan dari nopol/pelanggan | Ya | R63 |
+| K22 | Keranjang yang dibuka lagi | Saran: pindah ke layar dan keluar dari daftar; layar berisi wajib ditambahkan dulu | _"jika mau pindah keranjang harus make sure harus disimpan yang ada di layar saat ini dan jangan lupa diisi keterangan juga"_ | R63 |
+| K23 | Letak tombol | Saran: di bawah Bayar, selebar Bayar, gaya garis | Ya | R63 |
+| K24 | Sebutan isian layar | Saran: "keranjang" hanya untuk yang ditunda; layar tanpa nama khusus, tombol Kosongkan | Ya | GLOSSARY: Keranjang |
+| K25 | Keterangan sama | (a) ditolak; (b) boleh; (c) digabung. Saran: (a) | Ya | R63 |
+
 ## Koreksi tanpa pertanyaan
 
 Dua koreksi diterapkan tanpa ditanyakan, karena tidak ada alternatif yang masuk akal:

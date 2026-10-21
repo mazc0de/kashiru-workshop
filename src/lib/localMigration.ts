@@ -65,6 +65,7 @@ export function cartFromOld(o: Old): Cart {
     data: {
       plate: o.data?.nopol ?? '',
       customer: o.data?.pelanggan ?? '',
+      description: '',
       mechanicId: o.data?.mekanikId ?? null,
       serviceNote: o.data?.catatanServis ?? '',
     },
@@ -86,6 +87,7 @@ export function receiptFromOld(o: Old): ReceiptData {
     cashier: o.kasir,
     plate: o.nopol ?? null,
     customer: o.pelanggan ?? null,
+    description: null,
     mechanic: o.mekanik ?? null,
     serviceNote: o.catatanServis ?? null,
     lines: (o.baris ?? []).map(receiptLineFromOld),

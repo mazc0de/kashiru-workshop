@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Minus, Plus, X } from 'lucide-react'
+import { Minus, Plus, ShoppingCart, X } from 'lucide-react'
 import { cn } from 'cn'
 
 import { useProfile } from '@/auth/session'
@@ -22,23 +22,26 @@ import {
   removeLine,
   lineCogs,
   toCalcLines,
-  selectLine,
   qtyInCart,
   refreshPrices,
+  pricesChanged,
   addProduct,
   setServicePrice,
   changeQty,
   decreaseProduct,
   addManualService,
+  type Cart,
   type CartLine,
 } from '@/pos/cart'
-import { openHeldCart, holdCart, useCart } from '@/pos/cartStore'
+import { currentDraft, importHeldCarts, useCart } from '@/pos/cartStore'
 import { paySale, lastReceipt, type Attempt } from '@/pos/checkout'
+import { CartsDialog } from '@/pos/CartsDialog'
 import { CatalogDialog } from '@/pos/CatalogDialog'
 import { discountText, parseLineDiscount } from '@/pos/discountInput'
+import { descriptionError, listedCarts, qtyInSavedCarts, savedCartsQty, suggestedDescription, tidyDescription } from '@/pos/openCarts'
 import { PaymentDialog } from '@/pos/PaymentDialog'
 import { ServiceDialog } from '@/pos/ServiceDialog'
-import { SaleInfoDialog, DiscountDialog, HeldCartsDialog, ClearCartDialog, QtyDialog, StockDialog } from '@/pos/PosDialogs'
+import { SaleInfoDialog, DiscountDialog, ClearCartDialog, QtyDialog, StockDialog, SaveCartDialog } from '@/pos/PosDialogs'
 import { printReceipt } from '@/pos/printReceipt'
 import { findByBarcode, fullName, type LocalProduct } from '@/products/product'
 import { SearchBox } from '@/products/ProductSearchBox'
@@ -83,11 +86,13 @@ type Dialog =
   | { kind: 'qty' }
   | { kind: 'saleDiscount' }
   | { kind: 'data' }
-  | { kind: 'held' }
   | { kind: 'payment' }
   | { kind: 'clear' }
-  | { kind: 'stock'; products: LocalProduct; qty: number; proceed: () => void }
+  | { kind: 'stock'; products: LocalProduct; qty: number; others: { label: string; qty: number }[]; proceed: () => void }
   | { kind: 'barcode'; code: string }
+  | { kind: 'carts' }
+  /** Tambah ke keranjang; `thenOpen` = keranjang yang dibuka setelah isian layar ditambahkan. */
+  | { kind: 'save'; thenOpen: string | null }
 
 let keyCounter = 0
 const newKey = () => `baris-${Date.now()}-${++keyCounter}`
@@ -97,8 +102,11 @@ function PosScreen() {
   const settings = useSettings()
   const logo = useLogo(settings.data?.logo_url)
   const online = useOnline()
-  const cart = useCart()
-  const { update } = cart
+  // `cart` adalah isian layar; keranjang yang ditunda ada di `saved` (R63).
+  const cart = useCart((s) => s.draft)
+  const saved = useCart((s) => s.saved)
+  const { update, save, open, clear } = useCart.getState()
+  const listed = useMemo(() => listedCarts({ draft: cart, saved }), [cart, saved])
   const products = useLiveQuery(() => db.products.toArray(), [], [] as LocalProduct[])
   const mechanics = useLiveQuery(listMechanics, [], [])
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products])
@@ -108,10 +116,11 @@ function PosScreen() {
   const productOf = (b: CartLine) => (b.productId === null ? undefined : productMap.get(b.productId))
   const cartQty = useMemo(() => {
     const m = new Map<string, number>()
-    // Jasa manual tidak punya produk; kuncinya baris itu sendiri, supaya tetap terhitung di ringkasan keranjang.
+    // Jasa manual tidak punya produk; kuncinya baris itu sendiri, supaya tetap terhitung di ringkasan layar.
     for (const b of cart.lines) m.set(b.productId ?? b.key, (m.get(b.productId ?? b.key) ?? 0) + b.qty)
     return m
   }, [cart.lines])
+  const otherQty = useMemo(() => savedCartsQty({ draft: cart, saved }), [cart, saved])
 
   const [dialog, setDialog] = useState<Dialog | null>(null)
   // Katalog (R53) terpisah dari dialog lain, supaya peringatan stok bisa muncul di atasnya.
@@ -127,8 +136,13 @@ function PosScreen() {
   const selected: CartLine | undefined = cart.lines[cart.selected]
   const hasInactive = cart.lines.some((b) => b.inactive)
 
+  // Keranjang ditahan dari versi sebelumnya masuk ke daftar keranjang.
+  useEffect(() => {
+    void importHeldCarts()
+  }, [])
+
   const focusSearch = useCallback(() => requestAnimationFrame(() => searchInput.current?.focus()), [])
-  /** F8 dan tombol Diskon: kursor ke isian diskon baris itu, tanpa jendela (R55). */
+  /** Tombol Diskon: kursor ke isian diskon baris itu, tanpa jendela (R55). */
   const focusLineDiscount = (i: number) =>
     requestAnimationFrame(() => document.querySelector<HTMLInputElement>(`[data-discount-line="${i}"]`)?.focus())
   const closeDialog = useCallback(() => {
@@ -136,21 +150,27 @@ function PosScreen() {
     focusSearch()
   }, [focusSearch])
 
-  /** Qty part yang melebihi stok sistem meminta konfirmasi dulu; stok boleh minus (PRD 4.6). */
+  /**
+   * Qty part yang melebihi stok sistem meminta konfirmasi dulu; stok boleh minus (PRD 4.6). Qty part yang
+   * sama di keranjang yang ditunda ikut dihitung, tetapi stok tidak ditahan (ADR 0003).
+   */
   const withStockCheck = (p: LocalProduct | undefined, newQty: number, proceed: () => void) => {
-    if (p && p.type === 'part' && p.stock !== null && newQty > p.stock) {
-      playError()
-      setDialog({ kind: 'stock', products: p, qty: newQty, proceed })
-      return
+    if (p && p.type === 'part' && p.stock !== null) {
+      const others = qtyInSavedCarts(useCart.getState(), p.id)
+      if (newQty + others.reduce((t, o) => t + o.qty, 0) > p.stock) {
+        playError()
+        setDialog({ kind: 'stock', products: p, qty: newQty, others, proceed })
+        return
+      }
     }
     proceed()
   }
 
   const addToCart = (p: LocalProduct, fromPicker = false) => {
-    withStockCheck(p, qtyInCart(cart, p.id) + 1, () => {
+    withStockCheck(p, qtyInCart(currentDraft(), p.id) + 1, () => {
       const key = newKey()
       update((k) => addProduct(k, p, key))
-      const onSaved = useCart.getState()
+      const onSaved = currentDraft()
       setFlash({ key: onSaved.lines[onSaved.selected]?.key ?? key, n: Date.now() })
       playSuccess()
       setNotice(null)
@@ -162,7 +182,7 @@ function PosScreen() {
     })
   }
 
-  // Scan menambah part ke keranjang; barcode yang sama menambah qty (PRD 4.8).
+  // Scan menambah part ke layar; barcode yang sama menambah qty (PRD 4.8).
   useBarcodeScanner((code) => {
     const p = findByBarcode(products, code)
     if (p) addToCart(p, pickerOpen)
@@ -182,90 +202,40 @@ function PosScreen() {
     focusSearch()
   }, [settings.data, logo, focusSearch])
 
-  const hold = useCallback(async () => {
-    const label = await holdCart()
-    setNotice({ tone: 'info', text: `Keranjang ditahan: ${label}. Tekan F6 untuk membukanya lagi.` })
-    focusSearch()
-  }, [focusSearch])
+  /** Harga part diperbarui ke harga terbaru di master; dilewati selama salinan produk belum termuat. */
+  const refresh = (k: Cart) => (products.length ? refreshPrices(k, productMap) : k)
 
-  // Pintasan keyboard (PRD 4.6). Tombol navigasi keranjang hanya berlaku saat kolom cari kosong.
-  useEffect(() => {
-    const press = (e: KeyboardEvent) => {
-      if (dialog !== null || pickerOpen || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-      const k = useCart.getState()
-      const hasLines = k.lines.length > 0
-      switch (e.key) {
-        case 'F2':
-          e.preventDefault()
-          searchInput.current?.focus()
-          return
-        case 'F3':
-          e.preventDefault()
-          setCatalogOpen(true)
-          return
-        case 'F4':
-          e.preventDefault()
-          setDialog({ kind: 'data' })
-          return
-        case 'F10':
-          e.preventDefault()
-          setServiceOpen(true)
-          return
-        case 'F6':
-          e.preventDefault()
-          if (hasLines) void hold()
-          else setDialog({ kind: 'held' })
-          return
-        case 'F7':
-          e.preventDefault()
-          if (k.lines[k.selected]) setDialog({ kind: 'qty' })
-          return
-        case 'F8':
-          e.preventDefault()
-          if (e.shiftKey) {
-            if (hasLines) setDialog({ kind: 'saleDiscount' })
-          } else if (k.lines[k.selected]) focusLineDiscount(k.selected)
-          return
-        case 'F9':
-          e.preventDefault()
-          if (hasLines) setDialog({ kind: 'payment' })
-          return
-        case 'F12':
-          e.preventDefault()
-          void reprintLast()
-          return
-      }
-      const inOtherField = e.target !== searchInput.current && (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
-      if (inOtherField || (searchInput.current?.value ?? '') !== '') return
-      const b = k.lines[k.selected]
-      switch (e.key) {
-        case 'ArrowUp':
-        case 'ArrowDown':
-          e.preventDefault()
-          update((x) => selectLine(x, e.key === 'ArrowUp' ? -1 : 1))
-          return
-        case '+':
-        case '-':
-          if (!b) return
-          e.preventDefault()
-          if (e.key === '-') update((x) => stepQty(x, x.selected, -1))
-          else withStockCheck(productOf(b), qtyInCart(k, b.productId) + 1, () => update((x) => stepQty(x, x.selected, 1)))
-          return
-        case 'Delete':
-          if (!b) return
-          e.preventDefault()
-          update((x) => removeLine(x, x.selected))
-          return
-        case 'Escape':
-          if (!hasLines) return
-          e.preventDefault()
-          setDialog({ kind: 'clear' })
-          return
-      }
+  /** Buka keranjang: layar yang masih berisi barang ditambahkan ke keranjang dulu (R63). */
+  const openSaved = (id: string) => {
+    if (currentDraft().lines.length > 0) {
+      setDialog({ kind: 'save', thenOpen: id })
+      return
     }
-    window.addEventListener('keydown', press)
-    return () => window.removeEventListener('keydown', press)
-  })
+    const label = useCart.getState().saved.find((k) => k.id === id)?.data.description
+    open(id, refresh)
+    setNotice({ tone: 'info', text: `Keranjang ${label} dibuka. Tambah barang lalu Bayar, atau Tambah ke keranjang lagi.` })
+    setQuery('')
+    closeDialog()
+  }
+
+  /** Tambah ke keranjang dengan keterangan yang sudah diperiksa, lalu buka keranjang lain kalau diminta. */
+  const saveToCart = (description: string, thenOpen: string | null) => {
+    save(description)
+    setNotice({ tone: 'info', text: `Ditambahkan ke keranjang ${tidyDescription(description)}. Layar siap untuk pelanggan berikutnya.` })
+    setQuery('')
+    if (thenOpen) openSaved(thenOpen)
+    else closeDialog()
+  }
+
+  /** Bayar: harga diperiksa sekali lagi. Kalau ada yang berubah, keranjang diperbarui dan kasir memeriksanya dulu. */
+  const openPayment = () => {
+    if (products.length && pricesChanged(cart, productMap)) {
+      update((k) => refreshPrices(k, productMap))
+      setNotice({ tone: 'error', text: 'Harga atau status sebagian produk berubah. Periksa barang di layar, lalu tekan Bayar lagi.' })
+      return
+    }
+    setDialog({ kind: 'payment' })
+  }
 
   const pay = async ({ method, cash, attempt }: { method: 'tunai' | 'qris' | 'transfer' | 'edc'; cash: number | null; attempt: Attempt }) => {
     if (!settings.data) throw new Error('Pengaturan bengkel belum termuat.')
@@ -278,92 +248,117 @@ function PosScreen() {
       settings: settings.data,
       mechanic: mechanics.find((m) => m.id === cart.data.mechanicId) ?? null,
     })
-    cart.clear()
+    clear()
     setDialog(null)
     setNotice({
       tone: 'info',
       text: `Nota ${result.number} ${result.offline ? 'tersimpan di laptop, dikirim otomatis saat online' : 'tersimpan'}${result.originalNumber ? ` (nomor diganti dari ${result.originalNumber})` : ''}.${result.receipt.method === 'tunai' ? ` Kembali ${formatRupiah(result.receipt.change)}.` : ''}`,
     })
     focusSearch()
-    // Kalau printer bermasalah, nota tetap tersimpan dan bisa dicetak ulang dengan F12 (PRD 4.10).
+    // Kalau printer bermasalah, nota tetap tersimpan dan bisa dicetak ulang lewat tombol Cetak ulang (PRD 4.10).
     void printReceipt(result.receipt, settings.data.ukuran_kertas === 58 ? 58 : 80, logo, settings.data.jumlah_salinan)
   }
 
   return (
-    <div className="grid h-[calc(100dvh-4.5rem)] grid-cols-[minmax(0,1fr)_360px] gap-6">
-      <section className="flex min-h-0 flex-col">
-        <div className="flex items-baseline justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">Kasir</h1>
-          {!online && <span className="text-sm text-muted-foreground">Offline: nota disimpan di laptop dan dikirim otomatis saat online.</span>}
-        </div>
-        <div className="mt-4 flex gap-2">
-          <SearchBox
-            ref={searchInput}
-            query={query}
-            setQuery={setQuery}
-            products={products}
-            onPick={addToCart}
-            disabled={dialog !== null || pickerOpen}
-            placeholder="Scan barcode, atau ketik nama, merek, kode part (F2)"
-            className="min-w-0 flex-1"
+    <div className="flex h-[calc(100dvh-4.5rem)] flex-col gap-4">
+      <header className="flex items-center gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Kasir</h1>
+        {!online && <span className="text-sm text-muted-foreground">Offline: nota disimpan di laptop dan dikirim otomatis saat online.</span>}
+        <CartsButton count={listed.length} open={() => setDialog({ kind: 'carts' })} />
+      </header>
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px] gap-6">
+        <section className="flex min-h-0 flex-col">
+          <div className="flex gap-2">
+            <SearchBox
+              ref={searchInput}
+              query={query}
+              setQuery={setQuery}
+              products={products}
+              onPick={addToCart}
+              disabled={dialog !== null || pickerOpen}
+              placeholder="Scan barcode, atau ketik nama, merek, kode part"
+              className="min-w-0 flex-1"
+            />
+            <Button variant="outline" className="h-12 shrink-0" onClick={() => setCatalogOpen(true)}>
+              Katalog
+            </Button>
+            <Button variant="outline" className="h-12 shrink-0" onClick={() => setServiceOpen(true)}>
+              Jasa
+            </Button>
+          </div>
+          <EmptyLocalCopyNotice online={online} />
+          <CartTable
+            lines={cart.lines}
+            calc={calc}
+            selected={cart.selected}
+            flash={flash}
+            onSelectLine={(i) => update((k) => ({ ...k, selected: i }))}
+            openQty={(i) => {
+              update((k) => ({ ...k, selected: i }))
+              setDialog({ kind: 'qty' })
+            }}
+            editPrice={(i, price) => update((k) => setServicePrice(k, i, price))}
+            remove={(i) => update((k) => removeLine(k, i))}
+            finishPriceEdit={focusSearch}
+            lineCosts={cart.lines.map((b) => lineCogs(b, productOf(b)?.avgCost))}
+            setDiscount={(i, d) => update((k) => setLineDiscount({ ...k, selected: i }, i, d))}
+            stepUp={(i) => {
+              const k = currentDraft()
+              const b = k.lines[i]
+              if (!b) return
+              update((x) => ({ ...x, selected: i }))
+              withStockCheck(productOf(b), qtyInCart(k, b.productId) + 1, () => update((x) => stepQty(x, i, 1)))
+              focusSearch()
+            }}
+            stepDown={(i) => {
+              update((x) => stepQty({ ...x, selected: i }, i, -1))
+              focusSearch()
+            }}
           />
-          <Button variant="outline" className="h-12 shrink-0" onClick={() => setCatalogOpen(true)}>
-            Katalog <span className="text-muted-foreground">F3</span>
-          </Button>
-          <Button variant="outline" className="h-12 shrink-0" onClick={() => setServiceOpen(true)}>
-            Jasa <span className="text-muted-foreground">F10</span>
-          </Button>
-        </div>
-        <EmptyLocalCopyNotice online={online} />
-        <CartTable
-          lines={cart.lines}
-          calc={calc}
-          selected={cart.selected}
-          flash={flash}
-          onSelectLine={(i) => update((k) => ({ ...k, selected: i }))}
-          openQty={(i) => {
-            update((k) => ({ ...k, selected: i }))
-            setDialog({ kind: 'qty' })
-          }}
-          editPrice={(i, price) => update((k) => setServicePrice(k, i, price))}
-          remove={(i) => update((k) => removeLine(k, i))}
-          finishPriceEdit={focusSearch}
-          lineCosts={cart.lines.map((b) => lineCogs(b, productOf(b)?.avgCost))}
-          setDiscount={(i, d) => update((k) => setLineDiscount({ ...k, selected: i }, i, d))}
-          stepUp={(i) => {
-            const k = useCart.getState()
-            const b = k.lines[i]
-            if (!b) return
-            update((x) => ({ ...x, selected: i }))
-            withStockCheck(productOf(b), qtyInCart(k, b.productId) + 1, () => update((x) => stepQty(x, i, 1)))
-            focusSearch()
-          }}
-          stepDown={(i) => {
-            update((x) => stepQty({ ...x, selected: i }, i, -1))
-            focusSearch()
-          }}
-        />
-      </section>
+          {cart.lines.length > 0 && (
+            <div className="mt-2 flex justify-end">
+              <Button variant="ghost" className="text-muted-foreground" onClick={() => setDialog({ kind: 'clear' })}>
+                Kosongkan
+              </Button>
+            </div>
+          )}
+        </section>
 
-      <SummaryPanel
-        calc={calc}
-        lineCount={cart.lines.length}
-        data={cart.data}
-        mechanicName={mechanics.find((m) => m.id === cart.data.mechanicId)?.name ?? null}
-        hasInactive={hasInactive}
-        notice={notice}
-        open={(kind) => (kind === 'lineDiscount' ? focusLineDiscount(cart.selected) : setDialog({ kind }))}
-        hold={() => void hold()}
-        reprint={() => void reprintLast()}
-        hasSelection={Boolean(selected)}
-      />
+        <SummaryPanel
+          calc={calc}
+          lineCount={cart.lines.length}
+          data={cart.data}
+          mechanicName={mechanics.find((m) => m.id === cart.data.mechanicId)?.name ?? null}
+          hasInactive={hasInactive}
+          notice={notice}
+          open={(kind) =>
+            kind === 'lineDiscount'
+              ? focusLineDiscount(cart.selected)
+              : kind === 'payment'
+                ? openPayment()
+                : kind === 'save'
+                  ? setDialog({ kind: 'save', thenOpen: null })
+                  : setDialog({ kind })
+          }
+          reprint={() => void reprintLast()}
+          hasSelection={Boolean(selected)}
+        />
+
+      </div>
 
       <Dialog open={dialog !== null && dialog.kind !== 'barcode'} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent finalFocus={searchInput} className={dialog?.kind === 'payment' ? 'sm:max-w-lg' : undefined}>
+        <DialogContent
+          finalFocus={searchInput}
+          className={dialog?.kind === 'payment' ? 'sm:max-w-lg' : dialog?.kind === 'carts' ? 'sm:max-w-3xl' : undefined}
+        >
+          {dialog?.kind === 'carts' && (
+            <CartsDialog carts={listed} mechanics={mechanics} open={openSaved} close={closeDialog} />
+          )}
           {dialog?.kind === 'qty' && selected && (
             <QtyDialog
               lines={selected}
               stock={selected.type === 'part' ? (productOf(selected)?.stock ?? null) : null}
+              otherQty={selected.productId ? (otherQty.get(selected.productId) ?? 0) : 0}
               cancel={closeDialog}
               save={(qty) => {
                 update((k) => changeQty(k, k.selected, qty) ?? k)
@@ -395,17 +390,14 @@ function PosScreen() {
               }}
             />
           )}
-          {dialog?.kind === 'held' && (
-            <HeldCartsDialog
+          {dialog?.kind === 'save' && (
+            <SaveCartDialog
+              lineCount={cart.lines.length}
+              suggestion={suggestedDescription(cart)}
+              beforeOpening={dialog.thenOpen ? (saved.find((k) => k.id === dialog.thenOpen)?.data.description ?? null) : null}
+              check={(text) => descriptionError(useCart.getState(), text)}
               cancel={closeDialog}
-              open={async (id) => {
-                const held = await openHeldCart(id)
-                if (held) {
-                  cart.replaceCart(refreshPrices(held.cart, productMap))
-                  setNotice({ tone: 'info', text: `Keranjang ${held.label} dibuka lagi.` })
-                }
-                closeDialog()
-              }}
+              save={(description) => saveToCart(description, dialog.thenOpen)}
             />
           )}
           {dialog?.kind === 'payment' && settings.data && (
@@ -414,9 +406,11 @@ function PosScreen() {
           {dialog?.kind === 'clear' && (
             <ClearCartDialog
               count={cart.lines.length}
+              fromCart={cart.fromCart ? tidyDescription(cart.data.description) || null : null}
               cancel={closeDialog}
               clear={() => {
-                cart.clear()
+                clear()
+                setNotice(null)
                 closeDialog()
               }}
             />
@@ -427,6 +421,7 @@ function PosScreen() {
               stock={dialog.products.stock ?? 0}
               unit={dialog.products.unit}
               qty={dialog.qty}
+              others={dialog.others}
               cancel={closeDialog}
               proceed={() => {
                 const proceed = dialog.proceed
@@ -445,6 +440,7 @@ function PosScreen() {
         onPick={(p) => addToCart(p, true)}
         onDecrease={(p) => update((k) => decreaseProduct(k, p.id))}
         cartQty={cartQty}
+        otherQty={otherQty}
         blocked={dialog !== null}
         onClose={() => {
           setCatalogOpen(false)
@@ -460,7 +456,7 @@ function PosScreen() {
         onManual={(name, price) => {
           const key = newKey()
           update((k) => addManualService(k, name, price, key) ?? k)
-          const onSaved = useCart.getState()
+          const onSaved = currentDraft()
           setFlash({ key: onSaved.lines[onSaved.selected]?.key ?? key, n: Date.now() })
           playSuccess()
           setNotice(null)
@@ -475,6 +471,20 @@ function PosScreen() {
 
       <NewBarcodeDialog code={dialog?.kind === 'barcode' ? dialog.code : null} list={products} onClose={closeDialog} />
     </div>
+  )
+}
+
+/** Ikon keranjang di kanan atas (R61), dengan angka jumlah keranjang yang ditunda seperti di marketplace. */
+function CartsButton({ count, open }: { count: number; open: () => void }) {
+  return (
+    <Button variant="outline" size="icon" className="relative ml-auto size-11" aria-label={`Keranjang, ${count} motor menunggu`} title="Keranjang" onClick={open}>
+      <ShoppingCart className="size-5" strokeWidth={1.75} aria-hidden="true" />
+      {count > 0 && (
+        <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-negative px-1 text-xs font-semibold text-white tabular-nums">
+          {count}
+        </span>
+      )}
+    </Button>
   )
 }
 
@@ -502,7 +512,7 @@ function CartTable({
   editPrice: (i: number, price: number) => void
   remove: (i: number) => void
   finishPriceEdit: () => void
-  /** Tombol + dan − di kolom Qty (R54), sama dengan tombol + dan − di keyboard. */
+  /** Tombol + dan − di kolom Qty (R54). */
   stepUp: (i: number) => void
   stepDown: (i: number) => void
   /** HPP x qty tiap baris part (null untuk jasa), untuk peringatan diskon di bawah harga beli. */
@@ -512,7 +522,7 @@ function CartTable({
   if (lines.length === 0) {
     return (
       <div className="mt-4 flex flex-1 items-start rounded-md border border-dashed border-input p-6 text-muted-foreground">
-        Keranjang kosong. Scan barcode part, cari part dan jasa di kolom atas, atau buka Katalog (F3) dan Jasa (F10). Keranjang yang ditahan dibuka dengan F6.
+        Belum ada barang. Scan barcode part, cari part dan jasa di kolom atas, atau buka Katalog dan Jasa.
       </div>
     )
   }
@@ -552,20 +562,20 @@ function CartTable({
                       Harga berubah: {formatRupiah(b.oldPrice)} → {formatRupiah(b.price)}
                     </span>
                   )}
-                  {b.inactive && <span className="block text-sm text-negative">Produk sudah nonaktif. Hapus dari keranjang sebelum bayar.</span>}
+                  {b.inactive && <span className="block text-sm text-negative">Produk sudah nonaktif. Hapus barisnya sebelum bayar.</span>}
                   {belowCost && (
                     <span className="mt-1 inline-flex rounded-sm bg-pill-warning px-1.5 text-sm text-pill-warning-ink">Di bawah harga beli ({formatRupiah(cost)})</span>
                   )}
                 </td>
                 <td className="px-0 py-0.5 align-top">
                   <div className="flex items-center justify-center">
-                    <Button variant="ghost" size="icon" aria-label={`Kurangi qty ${b.name}`} title="Kurangi qty (−)" disabled={b.qty - 1 < 1} onClick={() => stepDown(i)}>
+                    <Button variant="ghost" size="icon" aria-label={`Kurangi qty ${b.name}`} title="Kurangi qty" disabled={b.qty - 1 < 1} onClick={() => stepDown(i)}>
                       <Minus className="size-4" strokeWidth={2} />
                     </Button>
-                    <button type="button" className="min-w-8 rounded-sm px-0.5 text-center tabular-nums underline-offset-4 hover:underline" onClick={() => openQty(i)} title="Ubah qty (F7)">
+                    <button type="button" className="min-w-8 rounded-sm px-0.5 text-center tabular-nums underline-offset-4 hover:underline" onClick={() => openQty(i)} title="Ubah qty">
                       {formatQty(b.qty)}
                     </button>
-                    <Button variant="ghost" size="icon" aria-label={`Tambah qty ${b.name}`} title="Tambah qty (+)" onClick={() => stepUp(i)}>
+                    <Button variant="ghost" size="icon" aria-label={`Tambah qty ${b.name}`} title="Tambah qty" onClick={() => stepUp(i)}>
                       <Plus className="size-4" strokeWidth={2} />
                     </Button>
                   </div>
@@ -582,7 +592,7 @@ function CartTable({
                 </td>
                 <td className="px-2 py-2 text-right align-top">{formatNumber(h.net)}</td>
                 <td className="px-1 py-1 align-top">
-                  <Button variant="ghost" size="icon" aria-label={`Hapus ${b.name}`} title="Hapus baris (Delete)" onClick={() => remove(i)}>
+                  <Button variant="ghost" size="icon" aria-label={`Hapus ${b.name}`} title="Hapus baris" onClick={() => remove(i)}>
                     <X className="size-4" strokeWidth={1.75} />
                   </Button>
                 </td>
@@ -716,18 +726,16 @@ function SummaryPanel({
   hasInactive,
   notice,
   open,
-  hold,
   reprint,
   hasSelection,
 }: {
   calc: SaleCalculation
   lineCount: number
-  data: { plate: string; customer: string; serviceNote: string }
+  data: { plate: string; customer: string; description: string; serviceNote: string }
   mechanicName: string | null
   hasInactive: boolean
   notice: { tone: 'info' | 'error'; text: string } | null
-  open: (kind: 'data' | 'qty' | 'lineDiscount' | 'saleDiscount' | 'payment' | 'clear') => void
-  hold: () => void
+  open: (kind: 'data' | 'qty' | 'lineDiscount' | 'saleDiscount' | 'payment' | 'save') => void
   reprint: () => void
   hasSelection: boolean
 }) {
@@ -735,6 +743,7 @@ function SummaryPanel({
   const info: [string, string | null][] = [
     ['Nopol', data.plate || null],
     ['Pelanggan', data.customer || null],
+    ['Keterangan', data.description || null],
     ['Mekanik', mechanicName],
     ['Catatan', data.serviceNote || null],
   ]
@@ -745,7 +754,7 @@ function SummaryPanel({
         <div className="flex items-center justify-between">
           <h2 className="text-base font-medium">Data nota</h2>
           <Button variant="ghost" onClick={() => open('data')}>
-            Ubah <span className="text-muted-foreground">F4</span>
+            Ubah
           </Button>
         </div>
         <dl className="mt-1 grid grid-cols-[88px_minmax(0,1fr)] gap-y-1">
@@ -780,28 +789,26 @@ function SummaryPanel({
           <p className="text-[30px] leading-9 font-bold tracking-tight">{formatRupiah(calc.total)}</p>
         </div>
         {calc.errorText && <Notice tone="error" className="mt-3">{calc.errorText}</Notice>}
-        {hasInactive && <Notice tone="error" className="mt-3">Hapus produk nonaktif dari keranjang sebelum bayar.</Notice>}
+        {hasInactive && <Notice tone="error" className="mt-3">Hapus produk nonaktif dari layar sebelum bayar.</Notice>}
         <Button size="lg" className="mt-4 h-14 w-full text-lg" disabled={empty || hasInactive || Boolean(calc.errorText)} onClick={() => open('payment')}>
-          Bayar <span className="opacity-60">F9</span>
+          Bayar
+        </Button>
+        {/* Tambah ke keranjang (R63): isian layar ditunda dengan keterangan, lalu layar bersih. */}
+        <Button variant="outline" size="lg" className="mt-2 h-12 w-full" disabled={empty} onClick={() => open('save')}>
+          Tambah ke keranjang
         </Button>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <Button variant="outline" disabled={!hasSelection} onClick={() => open('qty')}>
-            Ubah qty <span className="text-muted-foreground">F7</span>
+            Ubah qty
           </Button>
           <Button variant="outline" disabled={!hasSelection} onClick={() => open('lineDiscount')}>
-            Diskon <span className="text-muted-foreground">F8</span>
+            Diskon
           </Button>
           <Button variant="outline" disabled={empty} onClick={() => open('saleDiscount')}>
-            Diskon nota <span className="text-muted-foreground">⇧F8</span>
-          </Button>
-          <Button variant="outline" onClick={hold} disabled={empty}>
-            Tahan <span className="text-muted-foreground">F6</span>
+            Diskon nota
           </Button>
           <Button variant="outline" onClick={reprint}>
-            Cetak ulang <span className="text-muted-foreground">F12</span>
-          </Button>
-          <Button variant="outline" disabled={empty} onClick={() => open('clear')}>
-            Kosongkan <span className="text-muted-foreground">Esc</span>
+            Cetak ulang
           </Button>
         </div>
       </div>

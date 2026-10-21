@@ -9,15 +9,10 @@ import { formatNumber, formatRupiah, parseRupiah } from '@/lib/format'
 import { calculatePayment, PAYMENT_METHOD_LABELS, QUICK_CASH, type PaymentMethod } from '@/pos/calculate'
 import { previewNumber, prepareAttempt, type Attempt } from '@/pos/checkout'
 
-const METHODS: { method: PaymentMethod; key: string }[] = [
-  { method: 'tunai', key: 'U' },
-  { method: 'qris', key: 'Q' },
-  { method: 'transfer', key: 'T' },
-  { method: 'edc', key: 'E' },
-]
+const METHODS: PaymentMethod[] = ['tunai', 'qris', 'transfer', 'edc']
 
 /**
- * F9 Bayar (PRD 4.6): satu metode bayar sebagai catatan. Tunai mengisi uang diterima dengan bantuan
+ * Bayar (PRD 4.6): satu metode bayar sebagai catatan. Tunai mengisi uang diterima dengan bantuan
  * Uang pas dan pecahan cepat; metode lain otomatis sebesar total. Percobaan ulang memakai nomor yang sama.
  */
 export function PaymentDialog({
@@ -70,18 +65,6 @@ export function PaymentDialog({
         e.preventDefault()
         void send()
       }}
-      onKeyDown={(e) => {
-        if (e.ctrlKey || e.metaKey || e.altKey) return
-        const foldCase = e.key.toUpperCase()
-        const choice = METHODS.find((m) => m.key === foldCase)
-        if (choice) {
-          e.preventDefault()
-          setMethod(choice.method)
-        } else if (foldCase === 'P' && method === 'tunai') {
-          e.preventDefault()
-          setCash(formatNumber(total))
-        }
-      }}
     >
       <DialogHeader>
         <DialogTitle>Bayar</DialogTitle>
@@ -96,14 +79,14 @@ export function PaymentDialog({
       <div role="radiogroup" aria-label="Metode bayar" className="grid grid-cols-4 gap-1 rounded-md border border-input bg-card p-1">
         {METHODS.map((m) => (
           <button
-            key={m.method}
+            key={m}
             type="button"
             role="radio"
-            aria-checked={method === m.method}
-            onClick={() => setMethod(m.method)}
-            className={cn('h-11 rounded-sm text-[15px] text-muted-foreground', method === m.method && 'bg-active text-foreground')}
+            aria-checked={method === m}
+            onClick={() => setMethod(m)}
+            className={cn('h-11 rounded-sm text-[15px] text-muted-foreground', method === m && 'bg-active text-foreground')}
           >
-            {PAYMENT_METHOD_LABELS[m.method]} <span className="text-muted-foreground">{m.key}</span>
+            {PAYMENT_METHOD_LABELS[m]}
           </button>
         ))}
       </div>
@@ -130,7 +113,7 @@ export function PaymentDialog({
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={() => setCash(formatNumber(total))}>
-              Uang pas <span className="text-muted-foreground">P</span>
+              Uang pas
             </Button>
             {QUICK_CASH.map((p) => (
               <Button key={p} type="button" variant="outline" onClick={() => setCash(formatNumber(p))}>
@@ -158,10 +141,10 @@ export function PaymentDialog({
 
       <DialogFooter>
         <Button type="button" variant="outline" onClick={cancel} disabled={sending}>
-          Batal <span className="text-muted-foreground">Esc</span>
+          Batal
         </Button>
         <Button type="submit" size="lg" disabled={!attempt || !result || sending}>
-          {sending ? 'Menyimpan…' : errorText ? 'Coba lagi' : 'Bayar dan cetak'} <span className="opacity-60">Enter</span>
+          {sending ? 'Menyimpan…' : errorText ? 'Coba lagi' : 'Bayar dan cetak'}
         </Button>
       </DialogFooter>
     </form>

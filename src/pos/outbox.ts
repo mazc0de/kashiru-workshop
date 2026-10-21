@@ -92,7 +92,7 @@ async function markSent(n: OutboxSale, h: Extract<SendResult, { kind: 'sent' }>)
   await db.transaction('rw', [db.saleOutbox, db.metadata], async () => {
     await db.saleOutbox.delete(n.clientId)
     if (h.number === n.number) return
-    // Nomor diganti server karena sudah terpakai: cetak ulang F12 memakai nomor yang tercatat.
+    // Nomor diganti server karena sudah terpakai: Cetak ulang memakai nomor yang tercatat.
     const last = await db.metadata.get(LAST_RECEIPT_KEY)
     const receipt = last ? (JSON.parse(last.value) as ReceiptData) : null
     if (receipt?.number === n.number) await db.metadata.put({ key: LAST_RECEIPT_KEY, value: JSON.stringify({ ...receipt, number: h.number }) })

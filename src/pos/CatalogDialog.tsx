@@ -12,9 +12,11 @@ import { StockStatusPill } from '@/products/StockStatusPill'
 
 /**
  * Katalog di layar Kasir (R53): tab kategori, kotak produk urut nama, klik kotak menambah 1 ke keranjang
- * (sama seperti scan). Jendela tetap terbuka supaya beberapa barang bisa dipilih; Esc atau Selesai menutupnya.
+ * (sama seperti scan). Jendela tetap terbuka supaya beberapa barang bisa dipilih; Selesai atau × menutupnya.
  * Jendela Jasa memakai tampilan yang sama untuk daftar jasa, ditambah isian jasa manual di atasnya.
  */
+const NO_QTY = new Map<string, number>()
+
 export function CatalogDialog({
   open,
   title = 'Katalog',
@@ -27,6 +29,7 @@ export function CatalogDialog({
   onClose,
   blocked,
   cartQty,
+  otherQty,
 }: {
   open: boolean
   title?: string
@@ -40,6 +43,8 @@ export function CatalogDialog({
   products: LocalProduct[]
   /** Qty tiap produk yang sudah ada di keranjang, untuk penanda di kotaknya. */
   cartQty: Map<string, number>
+  /** Qty tiap produk di keranjang yang ditunda, ditampilkan di samping stok (stok tidak ditahan, ADR 0003). */
+  otherQty?: Map<string, number>
   onPick: (p: LocalProduct) => void
   onClose: () => void
   /** Ada dialog lain di atas katalog (mis. peringatan stok); katalog tidak ikut tertutup. */
@@ -59,6 +64,7 @@ export function CatalogDialog({
             onDecrease={onDecrease}
             onClose={onClose}
             cartQty={cartQty}
+            otherQty={otherQty ?? NO_QTY}
           />
         )}
       </DialogContent>
@@ -76,6 +82,7 @@ function CatalogBody({
   onDecrease,
   onClose,
   cartQty,
+  otherQty,
 }: {
   title: string
   filterPlaceholder: string
@@ -86,6 +93,7 @@ function CatalogBody({
   onDecrease: (p: LocalProduct) => void
   onClose: () => void
   cartQty: Map<string, number>
+  otherQty: Map<string, number>
 }) {
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -116,7 +124,7 @@ function CatalogBody({
           <Input aria-label={`Saring ${title.toLowerCase()}`} placeholder={filterPlaceholder} className="pl-9" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         {/* Tombol tutup sejajar dengan kolom saring (revisi UI). */}
-        <Button variant="ghost" size="icon" aria-label={`Tutup ${title.toLowerCase()}`} title="Tutup (Esc)" onClick={onClose}>
+        <Button variant="ghost" size="icon" aria-label={`Tutup ${title.toLowerCase()}`} title="Tutup" onClick={onClose}>
           <X className="size-5" strokeWidth={1.75} />
         </Button>
       </div>
@@ -161,7 +169,7 @@ function CatalogBody({
                   <button
                     type="button"
                     onClick={() => add(p)}
-                    title="Tambah 1 ke keranjang"
+                    title="Tambah 1 ke layar"
                     className={cn(
                       'flex min-h-[104px] flex-1 flex-col p-3 text-left hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-offset-[-2px]',
                       picked?.id === p.id && 'bg-active',
@@ -178,12 +186,13 @@ function CatalogBody({
                           <span className={cn('tabular-nums', (p.stock ?? 0) < 0 && 'text-negative')}>
                             Stok {formatQty(p.stock ?? 0)} {p.unit}
                           </span>
+                          {(otherQty.get(p.id) ?? 0) > 0 && <span className="tabular-nums">{formatQty(otherQty.get(p.id)!)} di keranjang</span>}
                           {status && status !== 'safe' && <StockStatusPill stock={p.stock ?? 0} minStock={p.minStock} />}
                         </>
                       )}
                     </span>
                   </button>
-                  {/* Penanda qty di keranjang dengan tombol kurang dan tambah (R54). */}
+                  {/* Penanda qty di layar dengan tombol kurang dan tambah (R54). */}
                   <div className="flex items-center justify-between border-t border-rule">
                     <Button
                       variant="ghost"
@@ -196,7 +205,7 @@ function CatalogBody({
                     </Button>
                     <span
                       aria-live="polite"
-                      aria-label={`${formatQty(inCart)} di keranjang`}
+                      aria-label={`${formatQty(inCart)} di layar`}
                       className={cn('min-w-10 text-center text-lg font-semibold tabular-nums', inCart === 0 && 'font-normal text-muted-foreground')}
                     >
                       {formatQty(inCart)}
@@ -215,9 +224,9 @@ function CatalogBody({
       <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border pt-4">
         <span className="text-sm text-muted-foreground">
           {cartQty.size > 0
-            ? `Keranjang: ${cartQty.size} produk, ${formatQty([...cartQty.values()].reduce((s, q) => s + q, 0))} qty. `
-            : 'Keranjang masih kosong. '}
-          Klik kotak atau + untuk menambah 1, − untuk mengurangi. Esc untuk menutup.
+            ? `Di layar: ${cartQty.size} produk, ${formatQty([...cartQty.values()].reduce((s, q) => s + q, 0))} qty. `
+            : 'Layar masih kosong. '}
+          Klik kotak atau + untuk menambah 1, − untuk mengurangi.
         </span>
         <Button onClick={onClose}>Selesai</Button>
       </div>

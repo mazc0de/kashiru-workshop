@@ -30,7 +30,7 @@ Satu instalasi untuk satu bengkel: satu project Supabase dan satu alamat aplikas
 
 | Menu | Isi |
 | --- | --- |
-| **Kasir** | Scan barcode atau cari produk, **Katalog** part per kategori (F3), **Jasa** (F10) dengan daftar jasa dan isian jasa manual, qty dengan tombol − / +, diskon per baris diketik langsung di tabel (rupiah atau %), diskon nota, tahan keranjang, bayar Tunai/QRIS/Transfer/EDC, cetak struk. Semua aksi punya pintasan keyboard (F2–F12). Tetap jalan saat offline |
+| **Kasir** | Scan barcode atau cari produk, **Katalog** part per kategori, **Jasa** dengan daftar jasa dan isian jasa manual, **Tambah ke keranjang** untuk menunda motor yang sedang diservis (dengan keterangan, dibuka lagi dari ikon keranjang di kanan atas), qty dengan tombol − / +, diskon per baris diketik langsung di tabel (rupiah atau %), diskon nota, bayar Tunai/QRIS/Transfer/EDC, cetak struk. Tetap jalan saat offline |
 | **Riwayat nota** | Cari per tanggal, nomor, nopol, atau pelanggan; cetak ulang (SALINAN); void nota; cetak ringkasan harian; daftar nota yang belum terkirim |
 | **Produk** | Part: banyak barcode dan kode part per part, barcode internal + cetak label, stok awal, "Simpan & berikutnya" untuk input cepat dengan scanner |
 | **Jasa** | Daftar jasa dan tarif default-nya. Jasa yang belum terdaftar bisa diketik manual di kasir, hanya tercatat di nota |

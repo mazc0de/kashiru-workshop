@@ -70,8 +70,10 @@ test('60 keranjang acak: total dan alokasi diskon sama di perangkat dan server',
     sent++
 
     // Payload yang sama persis dengan yang dikirim layar Kasir (PostgREST tidak mengirim nilai undefined).
+    // Keterangan nota diisi untuk memastikan isian yang hanya ada di laptop tidak ikut terkirim (R62).
     const cart: Cart = {
       ...EMPTY_CART,
+      data: { ...EMPTY_CART.data, description: 'Vario hitam' },
       lines: lines.map((l, i) => ({
         key: String(i), productId: l.productId, type: 'part', name: '', brand: null, unit: null, allowsFraction: true,
         qty: l.qty, price: l.price, manualPrice: false, discount: l.discount, oldPrice: null, inactive: false,

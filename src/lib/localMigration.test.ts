@@ -101,7 +101,7 @@ test('isi localStorage lama pindah ke kunci baru; keranjang aktif dan nomor urut
   const cart = JSON.parse(isi.get('kashiru.cart')!)
   expect(cart.version).toBe(0)
   expect(cart.state.lines[0]).toMatchObject({ key: 'b1', qty: 2, discount: { kind: 'nominal', input: 2000 } })
-  expect(cart.state.data).toEqual({ plate: 'B 1234 XYZ', customer: 'Pak Budi', mechanicId: null, serviceNote: '' })
+  expect(cart.state.data).toEqual({ plate: 'B 1234 XYZ', customer: 'Pak Budi', description: '', mechanicId: null, serviceNote: '' })
   // Kunci baru yang sudah ada tidak ditimpa.
   expect(isi.get('kashiru.settings')).toBe('{"id":1}')
   expect([...isi.keys()].filter((k) => ['kashiru.profil', 'kashiru.urutNota', 'kashiru.keranjang', 'kashiru.pengaturan'].includes(k))).toEqual([])

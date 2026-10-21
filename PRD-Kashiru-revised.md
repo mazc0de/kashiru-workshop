@@ -50,7 +50,7 @@ Semua modul di bawah dikerjakan dalam satu fase dan dirilis bersamaan.
 | Stok & kartu stok | Buku mutasi, stok boleh minus, status stok, saran belanja |
 | Penerimaan barang | Tanggal masuk, scan atau cari barang, qty, harga beli, void penerimaan (tanpa supplier, R52) |
 | Stock opname | Penuh atau per kategori, blind count, lembar hitung, scan |
-| Kasir (POS) | Keranjang, tahan keranjang, diskon, satu metode bayar per nota, void |
+| Kasir (POS) | Tambah ke keranjang untuk menunda motor yang sedang diservis, diskon, satu metode bayar per nota, void |
 | Scan barcode (Zebra DS2208) | Mode keyboard USB HID, tanpa driver |
 | Barcode internal & label | Angka urut Code128 untuk part tanpa barcode pabrik, dicetak di printer struk |
 | Cetak struk (Kassen BTP-3050) | 58mm atau 80mm sesuai pengaturan, cetak ulang "SALINAN" |
@@ -74,7 +74,7 @@ Detail keputusan ada di [ADR 0006](./docs/adr/0006-email-login-without-sending-e
 - Lupa password: akun lain membuat password baru dari Pengaturan → Akun. Tidak ada reset lewat email. Kalau akun aktif tinggal satu, developer meresetnya dari dashboard Supabase.
 - Akun bisa dinonaktifkan, misalnya saat kasir berhenti atau perangkat hilang. Akun tidak bisa menonaktifkan dirinya sendiri, sehingga selalu ada minimal satu akun aktif. Akun nonaktif bisa diaktifkan lagi oleh akun mana pun, misalnya saat kasir lama kembali bekerja.
 - Sesi tersimpan di perangkat. Logout otomatis berjalan setelah tidak ada aktivitas selama waktu yang bisa diatur (default 12 jam), dan ditunda selama offline.
-- Tombol **Ganti akun** di pojok layar untuk bergantian akun di laptop yang sama. Keranjang yang ditahan tetap ada saat ganti akun. Ganti akun tidak bisa dilakukan saat offline.
+- Tombol **Ganti akun** di pojok layar untuk bergantian akun di laptop yang sama. Isian layar Kasir dan keranjang tetap ada saat ganti akun. Ganti akun tidak bisa dilakukan saat offline.
 - Ganti akun dan logout otomatis hanya mengeluarkan akun dari perangkat itu. Sesi akun yang sama di perangkat lain, misalnya HP pemilik, tetap jalan.
 - Akun yang dinonaktifkan juga diblokir di Supabase Auth, sehingga tidak bisa login atau memperpanjang sesi. Datanya sudah tertutup oleh RLS sejak saat itu.
 
@@ -173,12 +173,12 @@ Opname dilakukan per sesi dengan alur hitung → tinjau → konfirmasi. Stok sis
 
 ### 4.6 Kasir (POS)
 
-Layar kasir dirancang untuk keyboard + scanner, tanpa perlu mouse. Alur bengkel: kendaraan masuk, diservis, lalu semua part dan jasa dicatat di kasir sekaligus saat pelanggan membayar.
+Layar kasir dipakai dengan scanner dan mouse, tanpa pintasan keyboard (R60). Alur bengkel: kendaraan masuk dan diservis. Part dan jasa boleh dicatat sedikit demi sedikit selama servis berjalan supaya tidak lupa, ditunda di keranjang dengan keterangan saat kendaraan lain dilayani, lalu dibayar sekaligus saat selesai (R57, R63).
 
 - **Keranjang** berisi baris part (punya stok) dan baris jasa (tanpa stok).
-- **Jasa manual**: jendela Jasa (F10, tombol di kanan Katalog) punya isian nama jasa dan tarif untuk jasa yang belum ada di menu Jasa. Jasa manual hanya tercatat di baris nota (tanpa produk, tanpa stok, tetap bisa offline), tidak masuk daftar jasa. Nama wajib (maks. 100 huruf), tarif boleh Rp 0. Nama dan tarif yang sama menambah qty barisnya. Di laporan, jasa manual dihitung sebagai omzet jasa dengan kategori "Jasa manual", dan per produk dikelompokkan per nama.
-- **Qty jasa** berupa bilangan bulat ≥ 1, misalnya tambal ban 2 roda. Tombol + / − dan memilih jasa yang sama dari F2 menambah qty, sama seperti part.
-- **Data nota opsional**: nopol, nama pelanggan, satu mekanik untuk seluruh nota, dan catatan servis berikutnya (mis. "Ganti oli berikutnya: 21.000 km"). Semuanya boleh kosong. Mekanik baru bisa dibuat langsung dari isian mekanik ("+ Buat mekanik '…'"), kecuali saat offline.
+- **Jasa manual**: jendela Jasa (tombol di kanan Katalog) punya isian nama jasa dan tarif untuk jasa yang belum ada di menu Jasa. Jasa manual hanya tercatat di baris nota (tanpa produk, tanpa stok, tetap bisa offline), tidak masuk daftar jasa. Nama wajib (maks. 100 huruf), tarif boleh Rp 0. Nama dan tarif yang sama menambah qty barisnya. Di laporan, jasa manual dihitung sebagai omzet jasa dengan kategori "Jasa manual", dan per produk dikelompokkan per nama.
+- **Qty jasa** berupa bilangan bulat ≥ 1, misalnya tambal ban 2 roda. Tombol + / − dan memilih jasa yang sama dari kolom cari menambah qty, sama seperti part.
+- **Data nota opsional** (tombol Ubah di panel Data nota): nopol, nama pelanggan, **keterangan** (teks bebas penanda kendaraan atau pemiliknya, mis. "Vario hitam", R58; wajib saat Tambah ke keranjang; hanya di laptop dan struk, tidak tersimpan di server, R62), satu mekanik untuk seluruh nota, dan catatan servis berikutnya (mis. "Ganti oli berikutnya: 21.000 km"). Semuanya boleh kosong. Mekanik baru bisa dibuat langsung dari isian mekanik ("+ Buat mekanik '…'"), kecuali saat offline.
 - **Nopol**:
   - Disimpan dalam format baku, yaitu huruf besar dengan satu spasi di antara kelompok huruf dan angka. Contohnya `b1234xyz` tersimpan sebagai `B 1234 XYZ`.
   - Format resmi tidak dipaksakan. Nopol yang tidak biasa tetap bisa diketik bebas.
@@ -189,53 +189,39 @@ Layar kasir dirancang untuk keyboard + scanner, tanpa perlu mouse. Alur bengkel:
   - Harga part tidak bisa diubah di keranjang. Potongan diberikan lewat diskon.
 - **Diskon**:
   - Diskon per baris (part atau jasa) dan diskon per nota, dalam bentuk nominal atau persen.
-  - Diskon per baris diisi **langsung di kolom Diskon** tabel keranjang (R55): angka berarti rupiah untuk total baris (`2000` atau `2.000`), akhiran `%` berarti persen (`10%`, `2,5%`), kosong berarti tanpa diskon. Diterapkan saat Enter, Tab, atau pindah fokus; Esc membatalkan. Isian yang salah (bukan angka, persen di luar 0–100 atau lebih dari 2 desimal, melebihi jumlah baris) ditolak dengan pesan di bawah isian dan diskon lama tetap berlaku.
+  - Diskon per baris diisi **langsung di kolom Diskon** tabel keranjang (R55): angka berarti rupiah untuk total baris (`2000` atau `2.000`), akhiran `%` berarti persen (`10%`, `2,5%`), kosong berarti tanpa diskon. Diterapkan saat Enter, Tab, atau pindah fokus; Esc membatalkan (perilaku isian, bukan pintasan). Isian yang salah (bukan angka, persen di luar 0–100 atau lebih dari 2 desimal, melebihi jumlah baris) ditolak dengan pesan di bawah isian dan diskon lama tetap berlaku.
   - Diskon nominal per baris berlaku untuk total baris, bukan per satuan. Contoh: 3 × Rp 52.000 dengan diskon Rp 2.000 menjadi Rp 154.000.
   - Diskon tidak boleh membuat harga di bawah Rp 0.
   - Kalau harga part setelah diskon di bawah HPP, diskon tetap diterapkan dan baris itu diberi peringatan "Di bawah harga beli (Rp …)", tanpa konfirmasi terpisah (R55).
   - Diskon nota dialokasikan ke setiap baris sebanding nilainya, untuk laba kotor per kategori dan per produk. Alokasi tiap baris dibulatkan ke bawah, lalu sisa rupiahnya dibagikan satu per satu ke baris dengan pecahan terbesar, sehingga alokasi tidak pernah melebihi nilai baris.
   - Diskon tersimpan di nota bersama akun pembuatnya, tanpa catatan riwayat terpisah.
-- **Validasi stok**: peringatan kalau qty melebihi stok, tapi kasir tetap bisa lanjut setelah konfirmasi (stok boleh minus).
-- **Tahan keranjang**:
-  - Keranjang yang sedang diinput bisa disimpan sementara supaya kasir bisa melayani pelanggan lain, lalu dilanjutkan.
-  - Bisa ada beberapa keranjang ditahan, ditampilkan dengan nopol atau nama pelanggan.
-  - Keranjang ditahan disimpan di laptop, tetap aman saat offline atau saat browser tertutup, belum punya nomor, dan tidak mengurangi stok.
-  - Saat keranjang ditahan dibuka lagi, harga part diperbarui ke harga terbaru di master. Baris yang berubah ditandai, misalnya "Harga berubah: Rp 50.000 → Rp 52.000". Harga jasa yang sudah diubah manual tidak ikut diperbarui. Produk yang sudah dinonaktifkan ditandai dan harus dihapus dari keranjang sebelum bayar.
+- **Validasi stok**: peringatan kalau qty melebihi stok, tapi kasir tetap bisa lanjut setelah konfirmasi (stok boleh minus). Qty part yang sama di keranjang yang ditunda ikut dihitung dan disebutkan, mis. "Sudah ada juga di keranjang B 1234 XYZ (1)". Ini hanya peringatan; stok tidak ditahan (ADR 0003, R59). Kotak Katalog menampilkan stok sistem ditambah keterangan "1 di keranjang".
+- **Layar dan keranjang** (R57, R61, R63):
+  - Layar Kasir berisi **satu isian** yang sedang dikerjakan. Isian ini bukan keranjang dan tidak diberi nama khusus; saat kosong tertulis "Belum ada barang".
+  - **Tambah ke keranjang** (tombol garis selebar Bayar, tepat di bawahnya, nonaktif saat layar kosong) membuka jendela dengan satu isian **Keterangan** yang selalu wajib. Isiannya diusulkan dari keterangan, lalu nopol, lalu nama pelanggan yang sudah diisi. Keterangan harus unik di antara keranjang yang ada (huruf besar-kecil dan spasi diabaikan): "Sudah ada keranjang Vario hitam. Pakai keterangan lain, mis. tambahkan nopol atau nama pemilik." Setelah ditambahkan, layar bersih untuk pelanggan berikutnya.
+  - Contoh: motor A ganti oli, oli di-scan. Motor B datang untuk ganti roller, jadi kasir menekan Tambah ke keranjang, mengisi "Vario hitam", dan layar bersih untuk motor B.
+  - **Ikon keranjang** di pojok kanan atas layar Kasir, sejajar judul, dengan angka merah jumlah keranjang yang ditunda seperti di marketplace. Angkanya disembunyikan kalau 0.
+  - Klik ikon membuka **modal Keranjang**. Kiri: daftar keranjang urut waktu isiannya mulai dibuat, masing-masing dengan keterangan, jumlah baris, dan total; yang paling atas langsung terpilih. Kanan: isi keranjang terpilih (keterangan, nopol, pelanggan, mekanik, jam dibuat, barang dengan qty × harga dan diskon, total), hanya untuk dilihat. Tombolnya **Tutup** dan **Buka keranjang**. Kalau belum ada keranjang, modal menampilkan "Belum ada keranjang".
+  - **Buka keranjang** memindahkan isi keranjang ke layar dan mengeluarkannya dari daftar (angka di ikon berkurang). Kalau layar masih berisi barang, jendela Tambah ke keranjang muncul dulu ("Tambahkan dulu ke keranjang sebelum membuka keranjang Vario hitam", tombol **Tambahkan dan buka**). Layar tidak pernah tertimpa. Setelah dibuka, kasir menambah barang lalu **Bayar**, atau **Tambah ke keranjang** lagi dengan keterangan yang sudah terisi.
+  - **Bayar** menyelesaikan isian layar. **Kosongkan** (di bawah tabel) membuang isian layar setelah konfirmasi "Hapus 3 baris di layar?". Kalau isiannya berasal dari keranjang yang dibuka, konfirmasinya menyebut bahwa keranjang itu ikut terbuang. Setelah keduanya, layar bersih.
+  - Isian layar dan semua keranjang disimpan **hanya di laptop** (R62): tetap aman saat offline, saat browser tertutup, dan saat ganti akun, belum punya nomor, tidak mengurangi stok, dan tidak terlihat dari laptop lain.
+  - Setiap kali keranjang dibuka, harga part diperbarui ke harga terbaru di master. Baris yang berubah ditandai, misalnya "Harga berubah: Rp 50.000 → Rp 52.000". Harga jasa yang sudah diubah manual tidak ikut diperbarui. Produk yang sudah dinonaktifkan ditandai dan harus dihapus sebelum bayar. Pemeriksaan yang sama diulang saat Bayar ditekan; kalau ada yang berubah, layar diperbarui dan jendela bayar belum dibuka supaya kasir memeriksanya dulu.
+  - Keranjang aktif dan keranjang ditahan dari versi sebelumnya dipindah otomatis: keranjang aktif menjadi isian layar, keranjang ditahan masuk daftar dengan keterangan dari nopol, nama pelanggan, atau label lamanya (diberi nomor kalau sama).
 - **Bayar**:
   - Pilih satu metode bayar: **Tunai, QRIS, Transfer, atau EDC**. Metode bayar hanya catatan. Tidak ada split payment, tidak ada integrasi dengan penyedia pembayaran, dan tidak ada kolom referensi.
   - **Tunai**: isi uang diterima, dibantu tombol Uang pas dan pecahan cepat (Rp 20.000, Rp 50.000, Rp 100.000). Kembalian dihitung otomatis.
   - **Metode lain**: nominal otomatis sama dengan total.
-  - Di dialog bayar, metode dipilih dengan huruf: U Tunai, Q QRIS, T Transfer, E EDC; P mengisi uang pas. Kolom uang hanya menerima angka, jadi huruf tidak bentrok.
-  - Setelah bayar, nota tersimpan, stok terpotong, struk tercetak, dan fokus kembali ke kolom scan.
+  - Setelah bayar, nota tersimpan, stok terpotong, struk tercetak, dan fokus kembali ke kolom scan di keranjang kosong.
 - **Tanpa PPN**. Total = subtotal − diskon.
 - **Pembulatan**: hasil qty pecahan × harga dan setiap diskon persen dibulatkan ke rupiah terdekat (≥ 0,5 ke atas), per baris dan per diskon. Total tidak dibulatkan lagi ke ratusan.
-- **Pintasan keyboard**:
-
-  | Tombol | Aksi |
-  | --- | --- |
-  | F2 | Cari produk (nama, merek, barcode, atau kode part) |
-  | F3 | Buka **Katalog**: tab kategori dan kotak part; klik kotak menambah 1 ke keranjang, katalog tetap terbuka sampai Esc atau Selesai (R53). Setiap kotak punya tombol − qty + (R54) |
-  | F4 | Isi nopol, pelanggan, mekanik, dan catatan servis |
-  | F10 | Buka **Jasa**: tampilan sama dengan Katalog untuk daftar jasa, ditambah isian jasa manual |
-  | F6 | Tahan keranjang, atau buka daftar keranjang ditahan kalau keranjang kosong |
-  | F8 | Pindah ke isian diskon baris yang dipilih (R55) |
-  | Shift+F8 | Diskon nota |
-  | F9 | Bayar |
-  | F12 | Cetak ulang nota terakhir |
-  | ↑ / ↓ | Pilih baris di keranjang |
-  | + / − | Tambah atau kurangi qty baris yang dipilih. Kolom Qty di keranjang juga punya tombol − dan + (R54) |
-  | F7 | Ubah qty baris yang dipilih dengan mengetik angkanya, mis. `1,5` untuk part bisa pecahan atau `10` untuk baut. Mengklik angka qty membuka isian yang sama |
-  | Delete | Hapus baris yang dipilih |
-  | Esc | Tutup dialog. Kalau tidak ada dialog yang terbuka, kosongkan keranjang setelah konfirmasi |
-
-  Setiap tombol di layar mencantumkan pintasannya, misalnya "Bayar F9".
+- **Tanpa pintasan keyboard** (R60): semua aksi lewat tombol yang diklik (Katalog, Jasa, Ubah, Bayar, Tambah ke keranjang, Ubah qty, Diskon, Diskon nota, Cetak ulang, Kosongkan, ikon keranjang, tombol − / + dan × di tiap baris). Yang tetap jalan hanyalah perilaku dasar: scanner (mengetik barcode lalu Enter), Enter dan ↑ / ↓ di kolom cari untuk memilih hasil, Enter untuk mengirim isian dalam jendela, Esc untuk menutup jendela, dan Tab untuk pindah isian. Tombol tidak mencantumkan nama tombol keyboard. Mengklik angka qty membuka isian qty, mis. `1,5` untuk part bisa pecahan atau `10` untuk baut.
 
 - **Nomor nota**: `{AWALAN}-{YYYYMMDD}-{URUT}`, mis. `KSR-20261018-0001`.
   - Awalan bisa diatur di Pengaturan.
   - Tanggal adalah tanggal nota dibuat menurut jam laptop (WIB).
   - Nomor urut dimulai dari 0001 setiap hari dan dibuat oleh laptop yang membuat nota, online maupun offline. Kalau dua laptop memakai nomor yang sama, server memberi nomor kosong berikutnya (7.5, R50).
   - Mengganti awalan tidak mengulang nomor urut.
-- **Riwayat nota**: cari nota lewat nomor, tanggal, nopol, atau nama pelanggan, lalu cetak ulang atau void.
+- **Riwayat nota**: cari nota lewat nomor, tanggal, nopol, atau nama pelanggan, lalu cetak ulang atau void. Keterangan tidak tersimpan di server, jadi tidak ada di riwayat dan tidak ikut di cetak ulang dari Riwayat nota (R62).
 
 ### 4.7 Void Nota
 
@@ -290,7 +276,7 @@ BTP-3050 adalah printer thermal ESC/POS yang mendukung kertas 80mm dan 58mm, 203
 - **Pengaturan cetak**: ukuran kertas dan jumlah salinan (default 1).
 - **Cetak ulang** dari riwayat nota, dengan tanda **"SALINAN"**.
 - Kalau printer bermasalah, nota tetap tersimpan dan bisa dicetak ulang setelah printer normal. Tidak ada struk digital.
-- **Isi struk** (baris yang kosong tidak dicetak):
+- **Isi struk** (baris yang kosong tidak dicetak). Baris `Ket` berasal dari keranjang di laptop dan hanya ada di struk yang dicetak saat bayar dan di cetak ulang struk terakhir dari layar Kasir (R62):
 
 ```
         [LOGO BENGKEL - opsional]
@@ -303,6 +289,7 @@ Tgl  : 18/10/2026 14:32
 Kasir: Rina
 Nopol: B 1234 XYZ
 Plg  : Pak Budi
+Ket  : Vario hitam
 Mek  : Andi
 ------------------------------------------------
 PART
@@ -379,7 +366,7 @@ Nota dan penerimaan sudah menyimpan akun pembuatnya. Riwayat perubahan mencatat 
 
 Detail keputusan ada di [ADR 0002](./docs/adr/0002-offline-sales-only.md).
 
-- **Yang bisa offline**: membuat nota (termasuk keranjang ditahan), mencetak struk, dan mencetak ulang nota yang belum terkirim. Semua metode bayar bisa dipakai.
+- **Yang bisa offline**: membuat nota (termasuk Tambah ke keranjang dan membuka keranjang), mencetak struk, dan mencetak ulang nota yang belum terkirim. Semua metode bayar bisa dipakai.
 - **Yang wajib online**: penerimaan, opname, master produk, void, pengaturan, akun, laporan, dan ganti akun.
 - **Salinan lokal**: semua produk aktif beserta barcode, kode part, harga, dan stok, daftar mekanik aktif, serta daftar nopol dengan nama pelanggan terakhirnya, disimpan di IndexedDB (Dexie). Salinan ini dipakai untuk scan dan pencarian, online maupun offline. Semua perubahan data master dilakukan di laptop kasir sendiri, jadi salinan langsung diperbarui setiap kali data disimpan di laptop, ditambah sekali saat aplikasi dibuka dan saat kembali online. Tidak ada pemeriksaan berkala dan tidak ada Realtime. Perubahan dari perangkat lain baru terlihat di laptop setelah aplikasi dibuka ulang atau kembali online.
 - **Stok saat offline** = stok terakhir di salinan lokal − qty di nota offline yang belum terkirim, termasuk nota yang gagal terkirim, karena barangnya sudah keluar. Stok server dan laporan baru menghitung nota itu setelah berhasil terkirim (R25).
@@ -487,10 +474,10 @@ flowchart TB
 | Frontend | React 19 + Vite + TypeScript (versi stabil terbaru) | Build cepat, tipe data aman untuk uang & stok |
 | Routing | React Router (mode SPA) | Cukup untuk aplikasi satu halaman tanpa SSR |
 | Styling | Tailwind CSS v4 + shadcn/ui | Sesuai peta design system taste-skill |
-| State & data | TanStack Query + Zustand | Cache data server; keranjang dan keranjang ditahan di state lokal |
+| State & data | TanStack Query + Zustand | Cache data server; semua keranjang yang terbuka di state lokal (localStorage) |
 | Form & validasi | React Hook Form + Zod | Validasi harga, qty, nopol |
 | Tabel data | TanStack Table | Daftar produk & laporan ribuan baris |
-| Data lokal | IndexedDB (Dexie) | Salinan produk untuk scan instan, keranjang ditahan, antrean nota offline |
+| Data lokal | IndexedDB (Dexie) | Salinan produk untuk scan instan, antrean nota offline |
 | PWA | `vite-plugin-pwa` | Aplikasi tetap terbuka saat offline |
 | Backend | Supabase Free (Postgres, Auth, Storage, Edge Functions) | Lihat [ADR 0005](./docs/adr/0005-supabase-free-github-actions-backup.md). Realtime tidak dipakai |
 | Cetak | CSS `@page` + `window.print()` + Chrome `--kiosk-printing` | Tanpa software tambahan |
@@ -631,7 +618,7 @@ where si.sale_id = v_sale_id and si.tipe = 'part';
 | Label di kertas struk biasa cepat rusak terkena oli | Barcode internal tidak terbaca | Pakai gulungan stiker thermal 58/80mm di printer yang sama |
 | Scan masuk ke kolom input yang salah | Data kotor | Listener global memotong input scan dari field teks |
 | Laptop ditinggal dalam keadaan login | Harga atau stok diubah tanpa izin | Logout otomatis, riwayat perubahan per akun, dialog konfirmasi |
-| Kasir menolak sistem baru | Penjualan tetap manual | Pintasan keyboard, pelatihan 1 jam |
+| Kasir menolak sistem baru | Penjualan tetap manual | Scan + tombol besar yang diklik, pelatihan 1 jam |
 
 **Asumsi yang perlu dicek ulang**
 

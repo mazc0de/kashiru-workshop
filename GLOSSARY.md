@@ -17,9 +17,9 @@ _Di kode_: sale; struknya receipt
 _Hindari_: transaksi, sale, faktur, work order
 
 **Keranjang**:
-Daftar Part dan Jasa yang sedang diinput di kasir dan belum dibayar. Keranjang belum punya nomor dan belum mengurangi stok. Keranjang yang ditahan disimpan di laptop itu untuk dilanjutkan nanti.
-_Di kode_: cart; yang ditahan held cart
-_Hindari_: nota ditahan, draft nota, cart
+Daftar Part dan Jasa satu kendaraan yang ditunda di laptop dengan Keterangan Nota sebagai penanda, untuk dibuka lagi dan dibayar nanti. Keranjang belum punya nomor, belum mengurangi stok, dan tidak terlihat dari laptop lain. Isian yang sedang tampil di layar Kasir bukan keranjang; isian itu menjadi keranjang setelah ditambahkan ke keranjang.
+_Di kode_: cart (daftarnya saved carts); isian layar draft
+_Hindari_: nota ditahan, draft nota, keranjang ditahan, cart
 
 **Produk**:
 Sebutan umum untuk semua yang bisa masuk ke nota, yaitu Part dan Jasa.
@@ -50,6 +50,11 @@ _Hindari_: customer, member
 Nomor polisi kendaraan yang dicatat di nota, opsional, dan dipakai untuk mencari riwayat servis.
 _Di kode_: plate
 _Hindari_: plat nomor, TNKB
+
+**Keterangan Nota**:
+Teks bebas penanda kendaraan atau pemiliknya, misalnya "Vario hitam" atau "Pak Budi". Wajib saat isian layar ditambahkan ke Keranjang, dan menjadi nama keranjang itu. Tercetak di struk, tetapi tidak tersimpan di riwayat nota. Berbeda dari catatan servis, yang berisi pesan untuk servis berikutnya.
+_Di kode_: description
+_Hindari_: kendaraan, catatan nota
 
 **Barcode Internal**:
 Barcode berisi angka urut yang dibuat Kashiru untuk Part tanpa barcode pabrik, misalnya baut, lalu dicetak sebagai label di printer struk.

@@ -46,11 +46,15 @@ export async function prepareAttempt(): Promise<Attempt> {
 /** offline = belum terkirim (offline atau server tidak menjawab dalam 10 detik), dikirim otomatis nanti. */
 export type PaymentResult = { number: string; originalNumber: string | null; receipt: ReceiptData; offline: boolean }
 
-/** Nopol baku, nama pelanggan dan catatan servis yang sudah dirapikan; kosong menjadi null. */
+/**
+ * Nopol baku, nama pelanggan, keterangan, dan catatan servis yang sudah dirapikan; kosong menjadi null.
+ * Keterangan hanya dicetak di struk, tidak dikirim ke server (R62).
+ */
 function saleInfo(k: Cart) {
   return {
     plate: k.data.plate.trim() ? formatPlate(k.data.plate) : null,
     customer: k.data.customer.trim().replace(/\s+/g, ' ') || null,
+    description: k.data.description.trim().replace(/\s+/g, ' ') || null,
     note: k.data.serviceNote.trim() || null,
   }
 }
@@ -111,7 +115,7 @@ export async function paySale(options: {
   const payment = calculatePayment(options.method, calc.total, options.cashReceived)
   if (!payment) throw new Error('Uang diterima kurang dari total')
 
-  const { plate, customer, note } = saleInfo(k)
+  const { plate, customer, description, note } = saleInfo(k)
   const args = buildCheckoutArgs({
     cart: k,
     total: calc.total,
@@ -130,6 +134,7 @@ export async function paySale(options: {
     cashier: options.creator.name,
     plate,
     customer,
+    description,
     mechanic: options.mechanic?.name ?? null,
     serviceNote: note,
     lines: k.lines.map((b, i) => ({
@@ -168,7 +173,7 @@ export async function paySale(options: {
   if (result.kind === 'rejected') throw new Error(result.reason)
 
   const finalReceipt: ReceiptData = result.kind === 'sent' ? { ...receipt, number: result.number } : receipt
-  // Nopol tercatat untuk isian otomatis berikutnya; struk disimpan untuk F12 cetak ulang.
+  // Nopol tercatat untuk isian otomatis berikutnya; struk disimpan untuk tombol Cetak ulang.
   await db.transaction('rw', [db.plates, db.metadata], async () => {
     if (plate) await db.plates.put({ key: plateKey(plate), plate, customer })
     await db.metadata.put({ key: LAST_RECEIPT_KEY, value: JSON.stringify(finalReceipt) })
@@ -177,7 +182,7 @@ export async function paySale(options: {
   return { number: finalReceipt.number, originalNumber: result.kind === 'sent' ? result.originalNumber : null, receipt: finalReceipt, offline: result.kind === 'deferred' }
 }
 
-/** Struk nota terakhir di perangkat ini, untuk F12 cetak ulang. */
+/** Struk nota terakhir di perangkat ini, untuk tombol Cetak ulang. */
 export async function lastReceipt(): Promise<ReceiptData | null> {
   const save = await db.metadata.get(LAST_RECEIPT_KEY)
   return save ? (JSON.parse(save.value) as ReceiptData) : null

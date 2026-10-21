@@ -69,7 +69,7 @@ function ManualServiceForm({ onAdd }: { onAdd: (name: string, price: number) => 
     setName('')
     setPrice('')
     setError(null)
-    setAdded(`${tidy} Rp ${formatNumber(value)} masuk keranjang.`)
+    setAdded(`${tidy} Rp ${formatNumber(value)} masuk ke layar.`)
     nameInput.current?.focus()
   }
 

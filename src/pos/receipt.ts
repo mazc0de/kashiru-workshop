@@ -27,6 +27,11 @@ export type ReceiptData = {
   cashier: string
   plate: string | null
   customer: string | null
+  /**
+   * Keterangan nota, hanya dari keranjang di laptop (R62). Tidak tersimpan di server, jadi cetak ulang dari
+   * Riwayat nota dan struk yang tersimpan sebelum ada keterangan tidak punya isian ini.
+   */
+  description?: string | null
   mechanic: string | null
   serviceNote: string | null
   lines: ReceiptLine[]
@@ -106,6 +111,7 @@ export function buildReceipt(d: ReceiptData, width: ReceiptWidth): string[] {
     ['Kasir: ', d.cashier],
     ['Nopol: ', d.plate],
     ['Plg  : ', d.customer],
+    ['Ket  : ', d.description ?? null],
     ['Mek  : ', d.mechanic],
   ]
   for (const [label, value] of info) {
@@ -157,6 +163,7 @@ export function sampleReceipt(workshop: ReceiptData['workshop']): ReceiptData {
     cashier: 'Rina',
     plate: 'B 1234 XYZ',
     customer: 'Pak Budi',
+    description: 'Vario hitam',
     mechanic: 'Andi',
     serviceNote: 'Ganti oli berikutnya: 21.000 km',
     lines: [

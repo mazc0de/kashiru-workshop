@@ -12,25 +12,35 @@ Untuk pemilik dan kasir bengkel. Semua akun setara: setelah masuk, semua menu te
 
 ## Kasir (laptop)
 
-Laptop mana pun bisa dipakai sebagai kasir; nota mencatat akun yang sedang masuk. Scan barcode atau ketik nama produk, lalu bayar. Pintasan keyboard:
+Laptop mana pun bisa dipakai sebagai kasir; nota mencatat akun yang sedang masuk. Scan barcode atau ketik nama produk, lalu bayar. Semua aksi lewat tombol, tanpa pintasan keyboard:
 
 | Tombol | Fungsi |
 | --- | --- |
-| F2 | Ke kolom cari |
-| F3 | Katalog: pilih part dari kotak-kotak per kategori; klik kotak atau + menambah 1, − mengurangi 1 (di qty 1, barang keluar dari keranjang) |
-| F4 | Nopol, pelanggan, mekanik, catatan servis |
-| F10 | Jasa: pilih jasa dari kotak-kotak seperti Katalog, atau ketik **jasa manual** (nama + tarif) untuk jasa yang belum ada di menu Jasa |
-| F6 | Tahan keranjang, atau buka keranjang yang ditahan |
-| F7 | Ubah qty baris terpilih (mis. 1,5 liter) |
-| F8 / Shift+F8 | Ke isian diskon baris yang dipilih / diskon nota |
-| F9 | Bayar |
-| F12 | Cetak ulang struk terakhir |
-| ↑ ↓, +, −, Delete | Pilih baris, tambah/kurangi qty, hapus baris (saat kolom cari kosong). Kolom Qty di keranjang juga punya tombol − dan + |
-| Esc | Kosongkan keranjang |
+| Katalog | Pilih part dari kotak-kotak per kategori; klik kotak atau + menambah 1, − mengurangi 1 (di qty 1, barang keluar dari layar) |
+| Jasa | Pilih jasa dari kotak-kotak seperti Katalog, atau ketik **jasa manual** (nama + tarif) untuk jasa yang belum ada di menu Jasa |
+| Ubah (Data nota) | Nopol, pelanggan, keterangan, mekanik, catatan servis |
+| − / + dan × di tiap baris | Kurangi atau tambah qty, hapus baris. Klik angka qty untuk mengetik qty (mis. 1,5 liter) |
+| Ubah qty, Diskon, Diskon nota | Untuk baris yang dipilih (klik barisnya) atau seluruh nota |
+| Bayar | Pilih metode bayar, lalu Bayar dan cetak |
+| Tambah ke keranjang | Tunda isian layar dengan keterangan, lalu layar bersih untuk pelanggan berikutnya |
+| Ikon keranjang (kanan atas) | Lihat dan buka keranjang yang ditunda |
+| Cetak ulang | Cetak ulang struk terakhir |
+| Kosongkan | Buang isian layar yang batal, setelah konfirmasi |
 
-**Jasa manual** hanya tercatat di nota itu dan tidak masuk menu Jasa. Tarifnya boleh Rp 0, dan bisa diubah lagi di keranjang seperti jasa lain. Di laporan, jasa manual masuk omzet jasa dengan kategori "Jasa manual". Kalau jasa yang sama sering dipakai, tambahkan saja di menu Jasa.
+**Menunda motor yang sedang diservis.** Contoh: motor A mau ganti oli, jadi oli di-scan. Lalu motor B datang untuk ganti roller. Tekan **Tambah ke keranjang**, isi **Keterangan** untuk menandai motor A (mis. "Vario hitam"), lalu **Tambahkan**. Layar bersih dan siap untuk motor B.
 
-**Diskon per barang** diketik langsung di kolom Diskon: `2000` berarti Rp 2.000 untuk baris itu, `10%` berarti 10 persen, kosongkan untuk menghapus. Tekan Enter untuk menerapkan, Esc untuk membatalkan. Kalau isiannya salah, muncul pesan merah dan diskon lama tetap berlaku. Kalau harganya jadi di bawah harga beli, baris diberi tanda kuning.
+Saat mekanik minta kampas rem untuk motor A, klik **ikon keranjang** di kanan atas, pilih "Vario hitam" di daftar kiri (isinya tampil di kanan), lalu **Buka keranjang**. Kalau layar masih berisi barang motor B, Kashiru meminta keterangan untuk motor B dulu, supaya tidak ada yang hilang. Isi motor A pindah ke layar. Scan kampas remnya, lalu **Bayar** kalau motornya sudah selesai, atau **Tambah ke keranjang** lagi.
+
+- Keterangan selalu wajib dan tidak boleh sama dengan keranjang lain. Kalau nopol atau nama pelanggan sudah diisi, keterangan langsung terisi dengan nilai itu.
+- Angka merah di ikon keranjang adalah jumlah motor yang sedang menunggu. Keranjang yang sedang dibuka di layar tidak dihitung.
+- Keranjang tersimpan di laptop itu, tetap ada walaupun browser ditutup, internet mati, atau ganti akun, tetapi tidak terlihat dari laptop lain.
+- Harga part diperbarui ke harga terbaru setiap kali keranjang dibuka. Kalau harga berubah tepat saat Bayar ditekan, layar diperbarui dulu; periksa lalu tekan Bayar lagi.
+- Kalau part yang sama sudah ada di keranjang motor lain dan stoknya tidak cukup untuk semuanya, muncul peringatan yang menyebut keranjangnya. Katalog juga menulis, misalnya, "1 di keranjang".
+- **Keterangan** dicetak di struk, tetapi tidak tersimpan di Riwayat nota. Tulis nopol kalau kendaraannya ingin muncul di riwayat servis.
+
+**Jasa manual** hanya tercatat di nota itu dan tidak masuk menu Jasa. Tarifnya boleh Rp 0, dan bisa diubah lagi di layar seperti jasa lain. Di laporan, jasa manual masuk omzet jasa dengan kategori "Jasa manual". Kalau jasa yang sama sering dipakai, tambahkan saja di menu Jasa.
+
+**Diskon per barang** diketik langsung di kolom Diskon: `2000` berarti Rp 2.000 untuk baris itu, `10%` berarti 10 persen, kosongkan untuk menghapus. Tekan Enter atau klik di luar isian untuk menerapkan. Kalau isiannya salah, muncul pesan merah dan diskon lama tetap berlaku. Kalau harganya jadi di bawah harga beli, baris diberi tanda kuning.
 
 Stok boleh minus; nota tidak pernah tertahan karena stok sistem.
 

@@ -5,8 +5,8 @@ import {
   removeLine,
   EMPTY_CART,
   decreaseProduct,
-  cartLabel,
-  selectLine,
+  normalizeCart,
+  pricesChanged,
   qtyInCart,
   refreshPrices,
   addProduct,
@@ -51,7 +51,7 @@ describe('addProduct', () => {
 })
 
 describe('qty', () => {
-  test('F7: pecahan hanya untuk part bisa pecahan, maksimal 2 desimal', () => {
+  test('ubah qty: pecahan hanya untuk part bisa pecahan, maksimal 2 desimal', () => {
     const k = add(add(EMPTY_CART, OIL), BULK)
     expect(changeQty(k, 1, 1.5)?.lines[1].qty).toBe(1.5)
     expect(changeQty(k, 0, 1.5)).toBeNull()
@@ -74,11 +74,10 @@ describe('qty', () => {
   })
 })
 
-describe('pilih dan hapus baris', () => {
-  test('↑/↓ berhenti di ujung, hapus menjaga baris terpilih', () => {
+describe('hapus baris', () => {
+  test('hapus baris terakhir yang terpilih memilih baris sebelumnya', () => {
     let k = add(add(add(EMPTY_CART, OIL), BULK), TIRE_PATCH)
-    expect(selectLine(k, 1).selected).toBe(2)
-    expect(selectLine({ ...k, selected: 0 }, -1).selected).toBe(0)
+    expect(k.selected).toBe(2)
     k = removeLine(k, 2)
     expect(k.selected).toBe(1)
     expect(k.lines.map((b) => b.productId)).toEqual(['oli', 'curah'])
@@ -91,7 +90,7 @@ test('harga part tidak bisa diubah di keranjang, harga jasa bisa', () => {
   expect(setServicePrice(k, 1, 20000).lines[1]).toMatchObject({ price: 20000, manualPrice: true })
 })
 
-describe('segarkanHarga saat keranjang ditahan dibuka lagi', () => {
+describe('perbarui harga saat keranjang dibuka dan saat Bayar', () => {
   test('harga part ikut master dan ditandai, jasa manual tetap, produk nonaktif ditandai', () => {
     let k = add(add(add(EMPTY_CART, OIL), TIRE_PATCH), BULK)
     k = setServicePrice(k, 1, 25000)
@@ -106,13 +105,25 @@ describe('segarkanHarga saat keranjang ditahan dibuka lagi', () => {
       ['curah', 40000, null, true],
     ])
   })
+
+  test('Bayar hanya tertahan kalau harga atau status nonaktif berbeda dari master', () => {
+    const k = add(add(EMPTY_CART, OIL), TIRE_PATCH)
+    const copies = new Map([
+      ['oli', OIL],
+      ['tambal', TIRE_PATCH],
+    ])
+    expect(pricesChanged(k, copies)).toBe(false)
+    expect(pricesChanged(k, new Map([...copies, ['oli', { ...OIL, sellingPrice: 54000 }]]))).toBe(true)
+    expect(pricesChanged(k, new Map([['tambal', TIRE_PATCH]]))).toBe(true)
+    // Tanda "Harga berubah" yang sudah ada tidak membuat Bayar tertahan lagi.
+    const refreshed = refreshPrices(k, new Map([...copies, ['oli', { ...OIL, sellingPrice: 54000 }]]))
+    expect(pricesChanged(refreshed, new Map([...copies, ['oli', { ...OIL, sellingPrice: 54000 }]]))).toBe(false)
+  })
 })
 
-test('label keranjang ditahan: nopol, lalu pelanggan, lalu jam', () => {
-  const time = new Date('2026-10-18T07:32:00Z')
-  expect(cartLabel({ ...EMPTY_CART, data: { ...EMPTY_CART.data, plate: 'B 1234 XYZ', customer: 'Pak Budi' } }, time)).toBe('B 1234 XYZ')
-  expect(cartLabel({ ...EMPTY_CART, data: { ...EMPTY_CART.data, customer: 'Pak Budi' } }, time)).toBe('Pak Budi')
-  expect(cartLabel(EMPTY_CART, time)).toBe('Ditahan 14:32')
+test('keranjang lama tanpa keterangan dilengkapi', () => {
+  const old = { ...EMPTY_CART, data: { plate: 'B 1', customer: '', mechanicId: null, serviceNote: '' } } as unknown as Cart
+  expect(normalizeCart(old).data.description).toBe('')
 })
 
 describe('kurangi dari katalog (R54)', () => {

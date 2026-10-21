@@ -1,5 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useState } from 'react'
 import { cn } from 'cn'
 
 import { CreatableSelect } from '@/components/CreatableSelect'
@@ -9,35 +8,30 @@ import { Button } from '@/components/ui/button'
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { unwrap } from '@/lib/errors'
-import { formatQty, formatRupiah, formatDateTime, parseQty, parseRupiah } from '@/lib/format'
+import { formatQty, formatRupiah, parseQty, parseRupiah } from '@/lib/format'
 import { db, type LocalMechanic } from '@/lib/localCopy'
 import { useOnline } from '@/lib/online'
 import { supabase } from '@/lib/supabase'
-import { calculateDiscount, calculateSale, type Discount, type DiscountKind } from '@/pos/calculate'
-import { toCalcLines, type CartLine, type SaleInfo, type HeldCart } from '@/pos/cart'
+import { calculateDiscount, type Discount, type DiscountKind } from '@/pos/calculate'
+import type { CartLine, SaleInfo } from '@/pos/cart'
 import { formatPlate, plateKey } from '@/pos/plate'
 import { fullName } from '@/products/product'
 
-// Dialog di layar Kasir. Semua bisa dipakai dengan keyboard: Enter menyimpan, Esc menutup.
+// Dialog di layar Kasir. Enter menyimpan dan Esc menutup, sebagai perilaku bawaan jendela, bukan pintasan.
 
-function ShortcutButton({ shortcut, children }: { shortcut: string; children: ReactNode }) {
-  return (
-    <>
-      {children} <span className="text-muted-foreground">{shortcut}</span>
-    </>
-  )
-}
-
-/** F7: ketik qty baris terpilih (R21). Pecahan hanya untuk part bisa pecahan. */
+/** Ubah qty baris terpilih (R21). Pecahan hanya untuk part bisa pecahan. */
 export function QtyDialog({
   lines,
   stock,
+  otherQty,
   save,
   cancel,
 }: {
   lines: CartLine
   /** Stok di sistem untuk part, null untuk jasa. */
   stock: number | null
+  /** Qty produk yang sama di keranjang yang ditunda, ikut dihitung untuk peringatan stok. */
+  otherQty: number
   save: (qty: number) => void
   cancel: () => void
 }) {
@@ -51,7 +45,7 @@ export function QtyDialog({
       : !fractional && !Number.isInteger(qty)
         ? 'Qty harus bilangan bulat'
         : null
-  const exceedsStock = !errorText && stock !== null && qty! > stock
+  const exceedsStock = !errorText && stock !== null && qty! + otherQty > stock
   return (
     <form
       className="flex flex-col gap-5"
@@ -85,22 +79,23 @@ export function QtyDialog({
       </Field>
       {exceedsStock && (
         <Notice tone="warning">
-          Stok di sistem tinggal {formatQty(stock!)} {lines.unit}. Stok boleh minus; tekan Enter sekali lagi untuk tetap menyimpan.
+          Stok di sistem tinggal {formatQty(stock!)} {lines.unit}
+          {otherQty > 0 && `, dan ${formatQty(otherQty)} sudah ada di keranjang`}. Stok boleh minus; tekan Simpan sekali lagi untuk tetap menyimpan.
         </Notice>
       )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={cancel}>
-          <ShortcutButton shortcut="Esc">Batal</ShortcutButton>
+          Batal
         </Button>
         <Button type="submit" disabled={Boolean(errorText)}>
-          <ShortcutButton shortcut="Enter">{exceedsStock && acceptNegative ? 'Tetap simpan' : 'Simpan'}</ShortcutButton>
+          {exceedsStock && acceptNegative ? 'Tetap simpan' : 'Simpan'}
         </Button>
       </DialogFooter>
     </form>
   )
 }
 
-/** F8 diskon baris, Shift+F8 diskon nota (PRD 4.6). Nominal untuk total baris (R3), persen dibulatkan (R2). */
+/** Diskon nota (PRD 4.6). Nominal untuk total baris (R3), persen dibulatkan (R2). */
 export function DiscountDialog({
   title,
   base,
@@ -184,21 +179,21 @@ export function DiscountDialog({
         </p>
       )}
       {belowCost && (
-        <Notice tone="warning">Di bawah harga beli ({formatRupiah(totalCogs!)}). Tekan Enter sekali lagi kalau tetap ingin memberi diskon ini.</Notice>
+        <Notice tone="warning">Di bawah harga beli ({formatRupiah(totalCogs!)}). Tekan Terapkan sekali lagi kalau tetap ingin memberi diskon ini.</Notice>
       )}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={cancel}>
-          <ShortcutButton shortcut="Esc">Batal</ShortcutButton>
+          Batal
         </Button>
         <Button type="submit" disabled={Boolean(errorText)}>
-          <ShortcutButton shortcut="Enter">{belowCost && acceptLoss ? 'Tetap terapkan' : text.trim() ? 'Terapkan' : 'Hapus diskon'}</ShortcutButton>
+          {belowCost && acceptLoss ? 'Tetap terapkan' : text.trim() ? 'Terapkan' : 'Hapus diskon'}
         </Button>
       </DialogFooter>
     </form>
   )
 }
 
-/** F4: nopol, pelanggan, mekanik, dan catatan servis. Semuanya boleh kosong (PRD 4.6). */
+/** Data nota: nopol, pelanggan, keterangan, mekanik, dan catatan servis. Semuanya boleh kosong (PRD 4.6). */
 export function SaleInfoDialog({
   data,
   mechanic,
@@ -263,6 +258,9 @@ export function SaleInfoDialog({
           />
         </Field>
       </div>
+      <Field id="sale-description" label="Keterangan" hint="Penanda keranjang, mis. Vario hitam. Dicetak di struk, tidak tersimpan di riwayat nota.">
+        <Input id="sale-description" autoComplete="off" value={values.description} onChange={(e) => setValues({ ...values, description: e.target.value })} />
+      </Field>
       <Field id="sale-mechanic" label="Mekanik">
         <CreatableSelect
           id="sale-mechanic"
@@ -288,104 +286,112 @@ export function SaleInfoDialog({
       </Field>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={cancel}>
-          <ShortcutButton shortcut="Esc">Batal</ShortcutButton>
+          Batal
         </Button>
-        <Button type="submit">
-          <ShortcutButton shortcut="Enter">Simpan</ShortcutButton>
-        </Button>
+        <Button type="submit">Simpan</Button>
       </DialogFooter>
     </form>
   )
 }
 
-/** F6 saat keranjang kosong: buka keranjang yang ditahan (PRD 4.6). */
-export function HeldCartsDialog({ open, cancel }: { open: (id: string) => void; cancel: () => void }) {
-  const list = useLiveQuery(() => db.heldCarts.orderBy('heldAt').toArray(), [], [] as HeldCart[])
-  const [highlight, setHighlight] = useState(0)
-  const summaries = useMemo(
-    () => list.map((d) => ({ ...d, total: calculateSale(toCalcLines(d.cart), d.cart.saleDiscount).total })),
-    [list],
-  )
+/**
+ * Tambah ke keranjang (R63): keterangan wajib dan unik sebagai penanda keranjang, diusulkan dari keterangan,
+ * nopol, atau nama pelanggan. Dipakai juga sebelum membuka keranjang lain saat layar masih berisi barang.
+ */
+export function SaveCartDialog({
+  lineCount,
+  suggestion,
+  beforeOpening,
+  check,
+  save,
+  cancel,
+}: {
+  lineCount: number
+  suggestion: string
+  /** Nama keranjang yang akan dibuka setelah isian layar ditambahkan, atau null. */
+  beforeOpening: string | null
+  /** Pesan salah untuk keterangan, atau null kalau boleh dipakai. */
+  check: (text: string) => string | null
+  save: (description: string) => void
+  cancel: () => void
+}) {
+  const [text, setText] = useState(suggestion)
+  const [touched, setTouched] = useState(false)
+  const error = check(text)
   return (
-    <div
+    <form
       className="flex flex-col gap-4"
-      onKeyDown={(e) => {
-        if (!summaries.length) return
-        if (e.key === 'ArrowDown') {
-          e.preventDefault()
-          setHighlight((s) => Math.min(summaries.length - 1, s + 1))
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault()
-          setHighlight((s) => Math.max(0, s - 1))
-        } else if (e.key === 'Enter') {
-          e.preventDefault()
-          open(summaries[highlight].id)
-        }
+      onSubmit={(e) => {
+        e.preventDefault()
+        setTouched(true)
+        if (!error) save(text)
       }}
     >
       <DialogHeader>
-        <DialogTitle>Keranjang ditahan</DialogTitle>
-        <DialogDescription>Harga part diperbarui ke harga terbaru saat keranjang dibuka lagi.</DialogDescription>
+        <DialogTitle>Tambah ke keranjang</DialogTitle>
+        <DialogDescription>
+          {beforeOpening
+            ? `Layar masih berisi ${lineCount} baris. Tambahkan dulu ke keranjang sebelum membuka keranjang ${beforeOpening}.`
+            : `${lineCount} baris di layar disimpan ke keranjang, lalu layar bersih untuk pelanggan berikutnya.`}
+        </DialogDescription>
       </DialogHeader>
-      {summaries.length === 0 ? (
-        <p className="text-muted-foreground">Tidak ada keranjang yang ditahan.</p>
-      ) : (
-        <ul role="listbox" aria-label="Keranjang ditahan" tabIndex={0} autoFocus className="-mx-1 flex max-h-80 flex-col overflow-y-auto outline-none">
-          {summaries.map((d, i) => (
-            <li
-              key={d.id}
-              role="option"
-              aria-selected={i === highlight}
-              onMouseEnter={() => setHighlight(i)}
-              onClick={() => open(d.id)}
-              className={cn('flex cursor-default items-center justify-between gap-3 rounded-md px-3 py-2.5', i === highlight && 'bg-accent')}
-            >
-              <span className="min-w-0">
-                <span className="block truncate">{d.label}</span>
-                <span className="block text-sm text-muted-foreground">
-                  {d.cart.lines.length} baris · ditahan {formatDateTime(d.heldAt).slice(-5)}
-                </span>
-              </span>
-              <span className="flex-none">{formatRupiah(d.total)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <Field
+        id="cart-description"
+        label="Keterangan"
+        hint="Penanda keranjang, mis. nopol, nama pemilik, atau jenis dan warna motor. Dicetak di struk."
+        error={touched || text !== suggestion ? (error ?? undefined) : undefined}
+      >
+        <Input
+          id="cart-description"
+          autoFocus
+          autoComplete="off"
+          value={text}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => setText(e.target.value)}
+        />
+      </Field>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={cancel}>
-          <ShortcutButton shortcut="Esc">Tutup</ShortcutButton>
+          Batal
         </Button>
+        <Button type="submit">{beforeOpening ? 'Tambahkan dan buka' : 'Tambahkan'}</Button>
       </DialogFooter>
-    </div>
+    </form>
   )
 }
 
-/** Esc saat tidak ada dialog: kosongkan keranjang setelah konfirmasi (PRD 4.6). */
-export function ClearCartDialog({ count, clear, cancel }: { count: number; clear: () => void; cancel: () => void }) {
+/** Tombol Kosongkan: isian layar dihapus setelah konfirmasi (PRD 4.6). */
+export function ClearCartDialog({ count, fromCart, clear, cancel }: { count: number; fromCart: string | null; clear: () => void; cancel: () => void }) {
   return (
     <div className="flex flex-col gap-5">
       <DialogHeader>
-        <DialogTitle>Kosongkan keranjang?</DialogTitle>
-        <DialogDescription>{count} baris akan dihapus. Kalau ingin melayani pelanggan lain dulu, tahan keranjang dengan F6.</DialogDescription>
+        <DialogTitle>Hapus {count} baris di layar?</DialogTitle>
+        <DialogDescription>
+          {fromCart ? `Isian ini berasal dari keranjang ${fromCart}, jadi keranjang itu ikut terbuang.` : 'Isian dibuang tanpa dibayar.'}
+        </DialogDescription>
       </DialogHeader>
       <DialogFooter>
         <Button variant="outline" onClick={cancel}>
-          <ShortcutButton shortcut="Esc">Batal</ShortcutButton>
+          Batal
         </Button>
         <Button variant="destructive" autoFocus onClick={clear}>
-          <ShortcutButton shortcut="Enter">Kosongkan</ShortcutButton>
+          Kosongkan
         </Button>
       </DialogFooter>
     </div>
   )
 }
 
-/** Qty melebihi stok sistem: tetap bisa lanjut setelah konfirmasi, karena stok boleh minus (PRD 4.3, 4.6). */
+/**
+ * Qty melebihi stok sistem: tetap bisa lanjut setelah konfirmasi, karena stok boleh minus (PRD 4.3, 4.6).
+ * Qty di keranjang yang ditunda ikut dihitung, tetapi stok tidak ditahan (ADR 0003).
+ */
 export function StockDialog({
   name,
   stock,
   unit,
   qty,
+  others,
   proceed,
   cancel,
 }: {
@@ -393,23 +399,27 @@ export function StockDialog({
   stock: number
   unit: string | null
   qty: number
+  others: { label: string; qty: number }[]
   proceed: () => void
   cancel: () => void
 }) {
+  const inOthers = others.map((o) => `${o.label} (${formatQty(o.qty)})`).join(', ')
   return (
     <div className="flex flex-col gap-5">
       <DialogHeader>
         <DialogTitle>Stok di sistem kurang</DialogTitle>
         <DialogDescription>
-          {name}: stok tercatat {formatQty(stock)} {unit}, di keranjang menjadi {formatQty(qty)}. Biasanya karena penerimaan belum diinput. Nota tetap bisa dibuat dan stok menjadi minus.
+          {name}: stok tercatat {formatQty(stock)} {unit}, di layar ini menjadi {formatQty(qty)}.
+          {others.length > 0 && ` Sudah ada juga di keranjang ${inOthers}.`}
+          {qty > stock ? ' Biasanya karena penerimaan belum diinput.' : ''} Nota tetap bisa dibuat, dan stok boleh minus.
         </DialogDescription>
       </DialogHeader>
       <DialogFooter>
         <Button variant="outline" onClick={cancel}>
-          <ShortcutButton shortcut="Esc">Batal</ShortcutButton>
+          Batal
         </Button>
         <Button autoFocus onClick={proceed}>
-          <ShortcutButton shortcut="Enter">Tetap tambahkan</ShortcutButton>
+          Tetap tambahkan
         </Button>
       </DialogFooter>
     </div>

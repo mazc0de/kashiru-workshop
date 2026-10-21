@@ -8,8 +8,9 @@ import { upgradeToEnglish } from '@/lib/localMigration'
 import { supabase } from '@/lib/supabase'
 
 // Salinan lokal di IndexedDB (PRD 4.13): produk aktif beserta barcode, kode part, harga, dan stok,
-// mekanik aktif, serta daftar nopol dengan nama pelanggan terakhirnya. Keranjang ditahan juga
-// disimpan di sini supaya aman saat offline atau browser tertutup (PRD 4.6). Dipakai untuk scan dan pencarian, online maupun offline.
+// mekanik aktif, serta daftar nopol dengan nama pelanggan terakhirnya. Dipakai untuk scan
+// dan pencarian, online maupun offline. Tabel heldCarts hanya berisi keranjang ditahan dari versi
+// sebelumnya, yang dipindah menjadi tab saat layar Kasir dibuka (lihat importHeldCarts).
 // Diperbarui setiap kali data disimpan di perangkat ini, sekali saat aplikasi dibuka, dan saat
 // kembali online. Tanpa Realtime dan tanpa pemeriksaan berkala.
 // Antrean nota (PRD 4.13) juga ada di sini. Stok di salinan = stok server − qty nota yang belum
@@ -158,7 +159,7 @@ export async function listMechanics(): Promise<LocalMechanic[]> {
   return (await db.mechanics.toArray()).sort((x, y) => x.name.localeCompare(y.name, 'id'))
 }
 
-/** Ganti seluruh salinan dengan data server. Keranjang ditahan dan antrean nota tidak disentuh. */
+/** Ganti seluruh salinan dengan data server. Antrean nota tidak disentuh. */
 export function reloadLocalCopy(): Promise<void> {
   return withLock(async () => {
     const [products, plates, mechanics] = await Promise.all([

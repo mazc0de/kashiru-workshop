@@ -2,50 +2,73 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 import { db } from '@/lib/localCopy'
-import { EMPTY_CART, cartLabel, type Cart, type HeldCart } from '@/pos/cart'
+import { normalizeCart, type Cart } from '@/pos/cart'
+import {
+  addHeldCarts,
+  clearDraft,
+  initialCarts,
+  openCart,
+  saveDraft,
+  updateDraft,
+  type CartsState,
+  type Draft,
+} from '@/pos/openCarts'
 
-// Keranjang aktif disimpan di perangkat, jadi tidak hilang kalau browser di-refresh. Keranjang ditahan
-// disimpan di IndexedDB dan tidak terikat akun, sehingga tetap ada saat ganti akun (PRD 4.1, 4.6).
+// Isian layar Kasir dan semua keranjang disimpan di laptop (R62), jadi tidak hilang kalau browser di-refresh
+// atau ditutup, dan tidak terikat akun, sehingga tetap ada saat ganti akun (PRD 4.1, 4.6).
 
-type CartStore = Cart & {
+type CartStore = CartsState & {
+  /** Ubah isian layar. */
   update: (f: (k: Cart) => Cart) => void
-  replaceCart: (k: Cart) => void
+  /** Tambah ke keranjang dengan keterangan yang sudah diperiksa. */
+  save: (description: string) => void
+  open: (id: string, refresh: (k: Cart) => Cart) => void
+  /** Setelah bayar atau Kosongkan. */
   clear: () => void
 }
 
-const pickCart = (s: Cart): Cart => ({ lines: s.lines, selected: s.selected, data: s.data, saleDiscount: s.saleDiscount })
+const pickState = (s: CartsState): CartsState => ({ draft: s.draft, saved: s.saved })
 
 export const useCart = create<CartStore>()(
-  persist<CartStore, [], [], Cart>(
+  persist<CartStore, [], [], CartsState>(
     (set) => ({
-      ...EMPTY_CART,
-      update: (f) => set((s) => f(pickCart(s))),
-      replaceCart: (k) => set(k),
-      clear: () => set(EMPTY_CART),
+      ...initialCarts(new Date()),
+      update: (f) => set((s) => updateDraft(s, f)),
+      save: (description) => set((s) => saveDraft(s, description, crypto.randomUUID(), new Date())),
+      open: (id, refresh) => set((s) => openCart(s, id, refresh)),
+      clear: () => set((s) => clearDraft(s, new Date())),
     }),
-    { name: 'kashiru.cart', partialize: pickCart },
+    {
+      name: 'kashiru.cart',
+      version: 2,
+      partialize: pickState,
+      // Versi 0 menyimpan satu keranjang aktif (sekarang isian layar); keranjang lain ditahan di IndexedDB
+      // dan dipindah oleh importHeldCarts.
+      migrate: (old, version) => {
+        if (version === 0) return { draft: { ...normalizeCart(old as Cart), createdAt: new Date().toISOString(), fromCart: false }, saved: [] }
+        return old as CartsState
+      },
+      merge: (stored, current) => {
+        const s = (stored ?? {}) as Partial<CartsState>
+        if (!s.draft) return current
+        return {
+          ...current,
+          draft: { ...s.draft, ...normalizeCart(s.draft) },
+          saved: (s.saved ?? []).map((k) => ({ ...k, ...normalizeCart(k) })),
+        }
+      },
+    },
   ),
 )
 
-export function currentCart(): Cart {
-  return pickCart(useCart.getState())
+export function currentDraft(): Draft {
+  return useCart.getState().draft
 }
 
-/** F6: tahan keranjang yang sedang diinput (PRD 4.6). Belum punya nomor dan tidak mengurangi stok. */
-export async function holdCart(): Promise<string> {
-  const k = currentCart()
-  const now = new Date()
-  const label = cartLabel(k, now)
-  const held: HeldCart = { id: crypto.randomUUID(), label, heldAt: now.toISOString(), cart: k }
-  await db.heldCarts.add(held)
-  useCart.getState().clear()
-  return label
-}
-
-/** Buka keranjang ditahan: dipindah ke keranjang aktif dan dihapus dari daftar ditahan. */
-export async function openHeldCart(id: string): Promise<HeldCart | null> {
-  const held = await db.heldCarts.get(id)
-  if (!held) return null
-  await db.heldCarts.delete(id)
-  return held
+/** Keranjang ditahan dari versi sebelumnya dipindah ke daftar keranjang, lalu dihapus dari IndexedDB. */
+export async function importHeldCarts(): Promise<void> {
+  const held = await db.heldCarts.toArray()
+  if (!held.length) return
+  useCart.setState((s) => addHeldCarts(s, held))
+  await db.heldCarts.bulkDelete(held.map((h) => h.id))
 }

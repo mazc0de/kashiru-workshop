@@ -14,10 +14,10 @@ export type CartLine = {
   allowsFraction: boolean
   qty: number
   price: number
-  /** Harga jasa yang diubah kasir tidak ikut diperbarui saat keranjang ditahan dibuka lagi. */
+  /** Harga jasa yang diubah kasir tidak ikut diperbarui saat keranjang dibuka lagi. */
   manualPrice: boolean
   discount: Discount
-  /** Diisi saat keranjang ditahan dibuka lagi dan harga part di master berubah. */
+  /** Diisi saat keranjang dibuka lagi atau Bayar ditekan dan harga part di master berubah. */
   oldPrice: number | null
   /** Produk sudah dinonaktifkan: harus dihapus dari keranjang sebelum bayar. */
   inactive: boolean
@@ -26,6 +26,8 @@ export type CartLine = {
 export type SaleInfo = {
   plate: string
   customer: string
+  /** Keterangan nota: pengenal bebas kendaraan atau pemiliknya, mis. "Vario hitam". */
+  description: string
   mechanicId: string | null
   serviceNote: string
 }
@@ -37,13 +39,19 @@ export type Cart = {
   saleDiscount: Discount
 }
 
+/** Keranjang ditahan dari versi sebelum banyak keranjang. Hanya dibaca untuk memindahkan data lama di laptop. */
 export type HeldCart = { id: string; label: string; heldAt: string; cart: Cart }
 
 export const EMPTY_CART: Cart = {
   lines: [],
   selected: 0,
-  data: { plate: '', customer: '', mechanicId: null, serviceNote: '' },
+  data: { plate: '', customer: '', description: '', mechanicId: null, serviceNote: '' },
   saleDiscount: null,
+}
+
+/** Keranjang yang tersimpan sebelum ada Keterangan nota belum punya isian itu. */
+export function normalizeCart(k: Cart): Cart {
+  return { ...k, data: { ...EMPTY_CART.data, ...k.data } }
 }
 
 export function lineFromProduct(p: LocalProduct, key: string): CartLine {
@@ -115,7 +123,7 @@ export function changeQty(k: Cart, i: number, qty: number): Cart | null {
   return { ...k, lines: k.lines.map((x, j) => (j === i ? { ...x, qty } : x)) }
 }
 
-/** Tombol + / −. Qty tidak turun di bawah 1 (hapus baris memakai Delete). */
+/** Tombol + / −. Qty tidak turun di bawah 1 (hapus baris memakai tombol ×). */
 export function stepQty(k: Cart, i: number, direction: 1 | -1): Cart {
   const b = k.lines[i]
   if (!b) return k
@@ -140,11 +148,6 @@ export function removeLine(k: Cart, i: number): Cart {
   return { ...k, lines, selected: Math.max(0, Math.min(k.selected, lines.length - 1)) }
 }
 
-export function selectLine(k: Cart, direction: 1 | -1): Cart {
-  if (k.lines.length === 0) return k
-  return { ...k, selected: Math.max(0, Math.min(k.lines.length - 1, k.selected + direction)) }
-}
-
 /** Harga jasa boleh diubah langsung tanpa konfirmasi, termasuk Rp 0. Harga part tidak bisa diubah (PRD 4.6). */
 export function setServicePrice(k: Cart, i: number, price: number): Cart {
   const b = k.lines[i]
@@ -167,9 +170,9 @@ export function qtyInCart(k: Cart, productId: string | null): number {
 }
 
 /**
- * Saat keranjang ditahan dibuka lagi (PRD 4.6): harga part diperbarui ke harga terbaru di master dan
- * barisnya ditandai; harga jasa yang sudah diubah manual tidak ikut; produk nonaktif ditandai. Jasa manual
- * tidak punya produk, jadi dibiarkan apa adanya.
+ * Saat keranjang dibuka dan saat Bayar ditekan (PRD 4.6): harga part diperbarui ke harga terbaru di
+ * master dan barisnya ditandai; harga jasa yang sudah diubah manual tidak ikut; produk nonaktif ditandai.
+ * Jasa manual tidak punya produk, jadi dibiarkan apa adanya.
  */
 export function refreshPrices(k: Cart, copies: Map<string, LocalProduct>): Cart {
   const lines = k.lines.map((b) => {
@@ -182,12 +185,10 @@ export function refreshPrices(k: Cart, copies: Map<string, LocalProduct>): Cart 
   return { ...k, lines }
 }
 
-/** Label keranjang ditahan: nopol, lalu nama pelanggan, lalu jam ditahan (PRD 4.6). */
-export function cartLabel(k: Cart, heldAt: Date): string {
-  if (k.data.plate.trim()) return k.data.plate.trim()
-  if (k.data.customer.trim()) return k.data.customer.trim()
-  const hours = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(heldAt)
-  return `Ditahan ${hours}`
+/** Ada harga atau status nonaktif yang berbeda dari master, jadi keranjang perlu diperiksa lagi sebelum bayar. */
+export function pricesChanged(k: Cart, copies: Map<string, LocalProduct>): boolean {
+  const refreshed = refreshPrices(k, copies)
+  return refreshed.lines.some((b, i) => b.price !== k.lines[i].price || b.inactive !== k.lines[i].inactive)
 }
 
 /** HPP x qty baris part, untuk peringatan diskon di bawah harga beli. */
