@@ -34,7 +34,7 @@ export function LabelBarcode({ label, width }: { label: LabelContent; width: Pap
   }, [label.code])
 
   return (
-    <div style={{ breakInside: 'avoid', padding: '2mm 0 4mm', textAlign: 'center', color: '#000', fontFamily: 'sans-serif' }}>
+    <div style={{ breakInside: 'avoid', padding: '0 0 4mm', textAlign: 'center', color: '#000', fontFamily: 'sans-serif' }}>
       <div
         style={{
           fontSize: '9pt',
@@ -56,6 +56,9 @@ export function LabelBarcode({ label, width }: { label: LabelContent; width: Pap
 
 export type LabelPrintItem = { label: LabelContent; count: number }
 
+/** Jarak kertas kosong setelah label terakhir, supaya pisau potong (di atas head cetak) tidak mengenai angka kodenya. */
+const TRAILING_FEED_MM = 10
+
 /** Semua label dicetak berurutan dalam satu gulungan, jadi kertas hanya dipotong sekali. */
 export function LabelSheet({ items, width }: { items: LabelPrintItem[]; width: PaperWidth }) {
   return (
@@ -63,6 +66,7 @@ export function LabelSheet({ items, width }: { items: LabelPrintItem[]; width: P
       {items.flatMap(({ label, count }) =>
         Array.from({ length: count }, (_, i) => <LabelBarcode key={`${label.code}-${i}`} label={label} width={width} />),
       )}
+      <div style={{ height: `${TRAILING_FEED_MM}mm` }} />
     </>
   )
 }
