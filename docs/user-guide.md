@@ -7,7 +7,7 @@ Untuk pemilik dan kasir bengkel. Semua akun setara: setelah masuk, semua menu te
 - Masuk dengan **email** dan **password**.
 - Mengganti password sendiri: Pengaturan → Akun → tombol ⋯ di baris akun Anda → **Password baru**.
 - Lupa password: minta orang lain di bengkel membuatkan password baru dari Pengaturan → Akun. Kashiru tidak mengirim email.
-- **Ganti akun** di pojok kiri bawah dipakai saat bergantian kasir. Butuh internet, dan baru bisa setelah semua nota terkirim. Ganti akun menghapus isian layar Kasir dan semua keranjang di laptop.
+- Tombol **Keluar** (ikon pintu) di pojok kiri bawah, di samping nama akun, dipakai saat bergantian kasir. Kashiru meminta konfirmasi dulu. Keluar butuh internet dan baru bisa setelah semua nota terkirim; kalau belum bisa, jendelanya menjelaskan sebabnya. Keluar menghapus isian layar Kasir dan semua keranjang di laptop.
 - Kalau aplikasi tidak dipakai selama waktu di Pengaturan → Keamanan (bawaan 12 jam), akun keluar sendiri. Saat offline, keluar otomatis ditunda.
 
 ## Kasir (laptop)
@@ -33,7 +33,7 @@ Saat mekanik minta kampas rem untuk motor A, klik **ikon keranjang** di kanan at
 
 - Keterangan selalu wajib dan tidak boleh sama dengan keranjang lain. Kalau nopol atau nama pelanggan sudah diisi, keterangan langsung terisi dengan nilai itu.
 - Angka merah di ikon keranjang adalah jumlah motor yang sedang menunggu. Keranjang yang sedang dibuka di layar tidak dihitung.
-- Keranjang tersimpan di laptop itu, tetap ada walaupun browser ditutup atau internet mati, tetapi tidak terlihat dari laptop lain dan terhapus saat ganti akun atau keluar otomatis. **Bersihkan keranjang** di jendela Keranjang membuang semua keranjang sekaligus setelah konfirmasi.
+- Keranjang tersimpan di laptop itu, tetap ada walaupun browser ditutup atau internet mati, tetapi tidak terlihat dari laptop lain dan terhapus saat keluar, termasuk keluar otomatis. **Bersihkan keranjang** di jendela Keranjang membuang semua keranjang sekaligus setelah konfirmasi.
 - Harga part diperbarui ke harga terbaru setiap kali keranjang dibuka. Kalau harga berubah tepat saat Bayar ditekan, layar diperbarui dulu; periksa lalu tekan Bayar lagi.
 - Kalau part yang sama sudah ada di keranjang motor lain dan stoknya tidak cukup untuk semuanya, muncul peringatan yang menyebut keranjangnya. Katalog juga menulis, misalnya, "1 di keranjang".
 - **Keterangan** dicetak di struk, tetapi tidak tersimpan di Riwayat nota. Tulis nopol kalau kendaraannya ingin muncul di riwayat servis.

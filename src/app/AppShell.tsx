@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react'
-import { NavLink, Outlet } from 'react-router'
-import { Menu } from 'lucide-react'
+import { useCallback, useState, type ReactNode } from 'react'
+import { Link, NavLink, Outlet } from 'react-router'
+import { LogOut, Menu } from 'lucide-react'
 import { cn } from 'cn'
 
 import { DEFAULT_LOGOUT_HOURS, useAutoLogout } from '@/auth/autoLogout'
@@ -8,9 +8,11 @@ import { hasUnsentSales } from '@/auth/clearLocalData'
 import { useProfile, useSession } from '@/auth/session'
 import { useOnline } from '@/lib/online'
 import { useSettings } from '@/lib/settings'
+import { useCart } from '@/pos/cartStore'
 import { useSync, useUnsentSaleCount } from '@/pos/outbox'
 
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { KashiruMark } from '@/components/KashiruMark'
 import { NAVIGATION, SETTINGS, type Screen } from '@/app/navigation'
@@ -90,29 +92,108 @@ function Brand() {
 }
 
 /**
- * Akun yang login dan tombol Ganti akun di pojok bawah (PRD 4.1). Ganti akun butuh internet, dan ditolak
- * selama masih ada nota belum terkirim karena logout menghapus data di laptop.
+ * Akun yang login dan tombol Keluar di pojok bawah (PRD 4.1). Tombolnya selalu bisa diklik dan membuka
+ * dialog: keluar butuh internet (masuk lagi butuh internet) dan ditolak selama masih ada nota belum
+ * terkirim, karena keluar menghapus data di laptop.
  */
-function AccountRow() {
+function AccountRow({ onSelect }: { onSelect?: () => void }) {
   const profile = useProfile()
-  const { signOut } = useSession()
-  const online = useOnline()
-  const unsent = useUnsentSaleCount()
-  const blockedReason = !online ? 'Ganti akun butuh internet' : unsent > 0 ? `Masih ada ${unsent} nota belum terkirim. Kirim dulu sebelum ganti akun.` : undefined
+  const [open, setOpen] = useState(false)
   return (
     <div className="flex items-center gap-2 border-t border-rule px-3 pt-3">
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] leading-5">{profile.nama}</p>
         <p className="truncate text-sm leading-5 text-muted-foreground">{profile.email}</p>
       </div>
-      <Button
-        variant="outline"
-        disabled={blockedReason !== undefined}
-        title={blockedReason}
-        onClick={() => void hasUnsentSales().then((unsent) => (unsent ? undefined : signOut()))}
-      >
-        Ganti akun
+      <Button variant="outline" size="icon" aria-label="Keluar" title="Keluar" onClick={() => setOpen(true)}>
+        <LogOut className="size-4" strokeWidth={1.75} aria-hidden="true" />
       </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          {open && (
+            <SignOutDialog
+              close={() => setOpen(false)}
+              openSales={() => {
+                setOpen(false)
+                onSelect?.()
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function SignOutDialog({ close, openSales }: { close: () => void; openSales: () => void }) {
+  const profile = useProfile()
+  const { signOut } = useSession()
+  const online = useOnline()
+  const unsent = useUnsentSaleCount()
+  const draftLines = useCart((s) => s.draft.lines.length)
+  const savedCarts = useCart((s) => s.saved.length)
+  const [busy, setBusy] = useState(false)
+
+  if (!online)
+    return (
+      <SignOutBlocked title="Tidak bisa keluar saat offline" description="Masuk lagi butuh internet, jadi keluar baru bisa setelah laptop kembali online." close={close} />
+    )
+  if (unsent > 0)
+    return (
+      <SignOutBlocked
+        title={`Masih ada ${unsent} nota belum terkirim`}
+        description="Keluar menghapus data di laptop ini, jadi semua nota harus terkirim dulu. Periksa nota yang belum terkirim di Riwayat nota."
+        close={close}
+      >
+        <Button render={<Link to="/sales" />} nativeButton={false} onClick={openSales}>
+          Buka Riwayat nota
+        </Button>
+      </SignOutBlocked>
+    )
+
+  const lost = [draftLines > 0 && `${draftLines} baris di layar Kasir`, savedCarts > 0 && `${savedCarts} keranjang`].filter(Boolean).join(' dan ')
+  const confirm = async () => {
+    setBusy(true)
+    // Diperiksa lagi: nota bisa masuk antrean sejak dialog dibuka.
+    if (await hasUnsentSales()) {
+      setBusy(false)
+      return
+    }
+    await signOut()
+  }
+  return (
+    <div className="flex flex-col gap-5">
+      <DialogHeader>
+        <DialogTitle>Keluar dari akun {profile.nama}?</DialogTitle>
+        <DialogDescription>
+          {lost ? `Data di laptop ini ikut terhapus, termasuk ${lost}.` : 'Data di laptop ini ikut terhapus.'} Setelah keluar, akun lain bisa masuk.
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button variant="outline" onClick={close} disabled={busy}>
+          Batal
+        </Button>
+        <Button variant="destructive" autoFocus onClick={() => void confirm()} disabled={busy}>
+          {busy ? 'Keluar…' : 'Keluar'}
+        </Button>
+      </DialogFooter>
+    </div>
+  )
+}
+
+function SignOutBlocked({ title, description, close, children }: { title: string; description: string; close: () => void; children?: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>{description}</DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button variant="outline" autoFocus onClick={close}>
+          Tutup
+        </Button>
+        {children}
+      </DialogFooter>
     </div>
   )
 }
@@ -136,7 +217,7 @@ function NavList({ onSelect }: { onSelect?: () => void }) {
       <div className="px-1 pb-3 empty:hidden">
         <SyncStatus onSelect={onSelect} />
       </div>
-      <AccountRow />
+      <AccountRow onSelect={onSelect} />
     </nav>
   )
 }
