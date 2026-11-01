@@ -83,6 +83,11 @@ export function clearDraft(s: CartsState, now: Date): CartsState {
   return { ...s, draft: blankDraft(now) }
 }
 
+/** Bersihkan keranjang: semua keranjang yang ditunda dibuang. Isian layar tetap. */
+export function clearSavedCarts(s: CartsState): CartsState {
+  return { ...s, saved: [] }
+}
+
 /** Qty satu produk di keranjang yang ditunda, untuk peringatan stok. */
 export function qtyInSavedCarts(s: CartsState, productId: string): { label: string; qty: number }[] {
   const result: { label: string; qty: number }[] = []

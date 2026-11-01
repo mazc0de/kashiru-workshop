@@ -367,6 +367,26 @@ export function ClearCartDialog({ count, fromCart, clear, cancel }: { count: num
   )
 }
 
+/** Tombol Bersihkan keranjang di modal Keranjang: semua keranjang yang ditunda dibuang setelah konfirmasi. */
+export function ClearSavedCartsDialog({ count, clear, cancel }: { count: number; clear: () => void; cancel: () => void }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <DialogHeader>
+        <DialogTitle>Hapus {count} keranjang?</DialogTitle>
+        <DialogDescription>Semua keranjang yang ditunda dibuang tanpa dibayar. Isian di layar Kasir tidak ikut terhapus.</DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button variant="outline" onClick={cancel}>
+          Batal
+        </Button>
+        <Button variant="destructive" autoFocus onClick={clear}>
+          Bersihkan
+        </Button>
+      </DialogFooter>
+    </div>
+  )
+}
+
 /**
  * Qty melebihi stok sistem: tetap bisa lanjut setelah konfirmasi, karena stok boleh minus (PRD 4.3, 4.6).
  * Qty di keranjang yang ditunda ikut dihitung, tetapi stok tidak ditahan (ADR 0003).

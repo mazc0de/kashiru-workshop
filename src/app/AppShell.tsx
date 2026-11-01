@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { Menu } from 'lucide-react'
 import { cn } from 'cn'
 
 import { DEFAULT_LOGOUT_HOURS, useAutoLogout } from '@/auth/autoLogout'
+import { hasUnsentSales } from '@/auth/clearLocalData'
 import { useProfile, useSession } from '@/auth/session'
 import { useOnline } from '@/lib/online'
 import { useSettings } from '@/lib/settings'
-import { useSync } from '@/pos/outbox'
+import { useSync, useUnsentSaleCount } from '@/pos/outbox'
 
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
@@ -25,7 +26,15 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const { signOut } = useSession()
   const settings = useSettings()
-  useAutoLogout(settings.data?.auto_logout_jam ?? DEFAULT_LOGOUT_HOURS, signOut)
+  // Logout menghapus data di laptop, jadi logout otomatis ditunda selama masih ada nota belum terkirim.
+  const autoSignOut = useCallback(
+    (message: string) =>
+      void hasUnsentSales().then((unsent) => {
+        if (!unsent) void signOut(message)
+      }),
+    [signOut],
+  )
+  useAutoLogout(settings.data?.auto_logout_jam ?? DEFAULT_LOGOUT_HOURS, autoSignOut)
   useSync()
 
   return (
@@ -80,11 +89,16 @@ function Brand() {
   )
 }
 
-/** Akun yang login dan tombol Ganti akun di pojok bawah (PRD 4.1). Ganti akun butuh internet. */
+/**
+ * Akun yang login dan tombol Ganti akun di pojok bawah (PRD 4.1). Ganti akun butuh internet, dan ditolak
+ * selama masih ada nota belum terkirim karena logout menghapus data di laptop.
+ */
 function AccountRow() {
   const profile = useProfile()
   const { signOut } = useSession()
   const online = useOnline()
+  const unsent = useUnsentSaleCount()
+  const blockedReason = !online ? 'Ganti akun butuh internet' : unsent > 0 ? `Masih ada ${unsent} nota belum terkirim. Kirim dulu sebelum ganti akun.` : undefined
   return (
     <div className="flex items-center gap-2 border-t border-rule px-3 pt-3">
       <div className="min-w-0 flex-1">
@@ -93,9 +107,9 @@ function AccountRow() {
       </div>
       <Button
         variant="outline"
-        disabled={!online}
-        title={online ? undefined : 'Ganti akun butuh internet'}
-        onClick={() => void signOut()}
+        disabled={blockedReason !== undefined}
+        title={blockedReason}
+        onClick={() => void hasUnsentSales().then((unsent) => (unsent ? undefined : signOut()))}
       >
         Ganti akun
       </Button>

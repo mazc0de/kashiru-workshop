@@ -6,6 +6,7 @@ import { normalizeCart, type Cart } from '@/pos/cart'
 import {
   addHeldCarts,
   clearDraft,
+  clearSavedCarts,
   initialCarts,
   openCart,
   saveDraft,
@@ -15,7 +16,7 @@ import {
 } from '@/pos/openCarts'
 
 // Isian layar Kasir dan semua keranjang disimpan di laptop (R62), jadi tidak hilang kalau browser di-refresh
-// atau ditutup, dan tidak terikat akun, sehingga tetap ada saat ganti akun (PRD 4.1, 4.6).
+// atau ditutup. Semuanya dihapus saat logout (lihat clearLocalData).
 
 type CartStore = CartsState & {
   /** Ubah isian layar. */
@@ -25,6 +26,8 @@ type CartStore = CartsState & {
   open: (id: string, refresh: (k: Cart) => Cart) => void
   /** Setelah bayar atau Kosongkan. */
   clear: () => void
+  /** Bersihkan keranjang: semua keranjang yang ditunda dibuang. */
+  clearSaved: () => void
 }
 
 const pickState = (s: CartsState): CartsState => ({ draft: s.draft, saved: s.saved })
@@ -37,6 +40,7 @@ export const useCart = create<CartStore>()(
       save: (description) => set((s) => saveDraft(s, description, crypto.randomUUID(), new Date())),
       open: (id, refresh) => set((s) => openCart(s, id, refresh)),
       clear: () => set((s) => clearDraft(s, new Date())),
+      clearSaved: () => set(clearSavedCarts),
     }),
     {
       name: 'kashiru.cart',

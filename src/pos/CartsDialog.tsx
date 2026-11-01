@@ -18,12 +18,15 @@ export function CartsDialog({
   carts,
   mechanics,
   open,
+  clearAll,
   close,
 }: {
   /** Urut waktu dibuat. */
   carts: SavedCart[]
   mechanics: LocalMechanic[]
   open: (id: string) => void
+  /** Tombol Bersihkan keranjang; konfirmasinya ditampilkan oleh pemanggil. */
+  clearAll: () => void
   close: () => void
 }) {
   const [pickedId, setPickedId] = useState(() => carts[0]?.id)
@@ -65,6 +68,11 @@ export function CartsDialog({
       )}
 
       <DialogFooter>
+        {carts.length > 0 && (
+          <Button type="button" variant="ghost" className="text-destructive hover:text-destructive sm:mr-auto" onClick={clearAll}>
+            Bersihkan keranjang
+          </Button>
+        )}
         <Button type="button" variant="outline" onClick={close}>
           Tutup
         </Button>

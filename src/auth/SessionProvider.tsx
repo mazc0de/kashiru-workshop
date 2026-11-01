@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { forgetActivity } from '@/auth/autoLogout'
+import { clearLocalData } from '@/auth/clearLocalData'
 import { SessionContext, forgetProfile, loadProfile, storedProfile, type SessionValue, type SessionState } from '@/auth/session'
 import { storedSession, supabase } from '@/lib/supabase'
 
@@ -41,6 +42,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await supabase().auth.signOut({ scope: 'local' })
       forgetProfile()
       forgetActivity()
+      await clearLocalData()
       queryClient.clear()
     },
     [queryClient],

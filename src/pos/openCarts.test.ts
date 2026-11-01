@@ -4,6 +4,7 @@ import { addProduct, EMPTY_CART, type Cart } from '@/pos/cart'
 import {
   addHeldCarts,
   clearDraft,
+  clearSavedCarts,
   descriptionError,
   initialCarts,
   listedCarts,
@@ -95,6 +96,14 @@ test('setelah bayar atau Kosongkan, layar bersih dan keranjang lain tetap', () =
   s = clearDraft(withData(add(s, ROLLER), { plate: 'B 1' }), at(2))
   expect(s.draft).toMatchObject({ lines: [], fromCart: false, data: EMPTY_CART.data })
   expect(listedCarts(s)).toHaveLength(1)
+})
+
+test('Bersihkan keranjang membuang semua keranjang yang ditunda, isian layar tetap', () => {
+  let s = saveDraft(add(initialCarts(at(0)), OIL), 'Vario hitam', 'a', at(1))
+  s = saveDraft(add(s, ROLLER), 'Beat merah', 'b', at(2))
+  s = clearSavedCarts(add(s, OIL))
+  expect(listedCarts(s)).toEqual([])
+  expect(s.draft.lines).toHaveLength(1)
 })
 
 test('qty part di keranjang yang ditunda untuk peringatan stok dan katalog', () => {

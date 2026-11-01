@@ -40,7 +40,7 @@ import { discountText, parseLineDiscount } from '@/pos/discountInput'
 import { descriptionError, listedCarts, qtyInSavedCarts, savedCartsQty, suggestedDescription, tidyDescription } from '@/pos/openCarts'
 import { PaymentDialog } from '@/pos/PaymentDialog'
 import { ServiceDialog } from '@/pos/ServiceDialog'
-import { SaleInfoDialog, DiscountDialog, ClearCartDialog, QtyDialog, StockDialog, SaveCartDialog } from '@/pos/PosDialogs'
+import { SaleInfoDialog, DiscountDialog, ClearCartDialog, ClearSavedCartsDialog, QtyDialog, StockDialog, SaveCartDialog } from '@/pos/PosDialogs'
 import { printReceipt } from '@/pos/printReceipt'
 import { findByBarcode, fullName, type LocalProduct } from '@/products/product'
 import { SearchBox } from '@/products/ProductSearchBox'
@@ -90,6 +90,7 @@ type Dialog =
   | { kind: 'stock'; products: LocalProduct; qty: number; others: { label: string; qty: number }[]; proceed: () => void }
   | { kind: 'barcode'; code: string }
   | { kind: 'carts' }
+  | { kind: 'clearCarts' }
   /** Tambah ke keranjang; `thenOpen` = keranjang yang dibuka setelah isian layar ditambahkan. */
   | { kind: 'save'; thenOpen: string | null }
 
@@ -104,7 +105,7 @@ function PosScreen() {
   // `cart` adalah isian layar; keranjang yang ditunda ada di `saved` (R63).
   const cart = useCart((s) => s.draft)
   const saved = useCart((s) => s.saved)
-  const { update, save, open, clear } = useCart.getState()
+  const { update, save, open, clear, clearSaved } = useCart.getState()
   const listed = useMemo(() => listedCarts({ draft: cart, saved }), [cart, saved])
   const products = useLiveQuery(() => db.products.toArray(), [], [] as LocalProduct[])
   const mechanics = useLiveQuery(listMechanics, [], [])
@@ -350,7 +351,18 @@ function PosScreen() {
           className={dialog?.kind === 'payment' ? 'sm:max-w-lg' : dialog?.kind === 'carts' ? 'sm:max-w-3xl' : undefined}
         >
           {dialog?.kind === 'carts' && (
-            <CartsDialog carts={listed} mechanics={mechanics} open={openSaved} close={closeDialog} />
+            <CartsDialog carts={listed} mechanics={mechanics} open={openSaved} clearAll={() => setDialog({ kind: 'clearCarts' })} close={closeDialog} />
+          )}
+          {dialog?.kind === 'clearCarts' && (
+            <ClearSavedCartsDialog
+              count={listed.length}
+              cancel={() => setDialog({ kind: 'carts' })}
+              clear={() => {
+                clearSaved()
+                setNotice({ tone: 'info', text: `${listed.length} keranjang dibersihkan.` })
+                closeDialog()
+              }}
+            />
           )}
           {dialog?.kind === 'qty' && selected && (
             <QtyDialog
