@@ -10,6 +10,7 @@ import {
   listedCarts,
   openCart,
   qtyInSavedCarts,
+  reopenedDescription,
   saveDraft,
   savedCartsQty,
   suggestedDescription,
@@ -81,6 +82,27 @@ describe('buka keranjang', () => {
     s = add(s, ROLLER)
     expect(openCart(s, 'a', same)).toBe(s)
     expect(openCart(s, 'tidak-ada', same)).toBe(s)
+  })
+
+  test('pindah dari keranjang yang dibuka ke keranjang lain: keterangannya dipakai lagi tanpa ditanya', () => {
+    let s = saveDraft(add(add(initialCarts(at(0)), OIL), OIL), 'Vario', 'a', at(1))
+    s = saveDraft(add(s, ROLLER), 'Scoopy', 'b', at(2))
+    expect(reopenedDescription(s)).toBeNull()
+    s = add(openCart(s, 'a', same), ROLLER)
+    expect(reopenedDescription(s)).toBe('Vario')
+    s = openCart(saveDraft(s, reopenedDescription(s)!, 'a2', at(3)), 'b', same)
+    expect(s.draft.data.description).toBe('Scoopy')
+    expect(listedCarts(s).map((k) => [k.data.description, k.lines.length])).toEqual([['Vario', 2]])
+  })
+
+  test('isian layar baru, keterangan dikosongkan, atau keterangan bentrok tetap ditanya', () => {
+    let s = withData(add(initialCarts(at(0)), OIL), { description: 'Vario' })
+    expect(reopenedDescription(s)).toBeNull()
+    s = saveDraft(s, 'Vario', 'a', at(1))
+    s = saveDraft(add(s, ROLLER), 'Scoopy', 'b', at(2))
+    s = openCart(s, 'a', same)
+    expect(reopenedDescription(withData(s, { description: '  ' }))).toBeNull()
+    expect(reopenedDescription(withData(s, { description: 'scoopy' }))).toBeNull()
   })
 
   test('daftar urut waktu isian mulai dibuat', () => {

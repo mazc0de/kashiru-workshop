@@ -37,7 +37,7 @@ import { paySale, lastReceipt, type Attempt } from '@/pos/checkout'
 import { CartsDialog } from '@/pos/CartsDialog'
 import { CatalogDialog } from '@/pos/CatalogDialog'
 import { discountText, parseLineDiscount } from '@/pos/discountInput'
-import { descriptionError, listedCarts, qtyInSavedCarts, savedCartsQty, suggestedDescription, tidyDescription } from '@/pos/openCarts'
+import { descriptionError, listedCarts, qtyInSavedCarts, reopenedDescription, savedCartsQty, suggestedDescription, tidyDescription } from '@/pos/openCarts'
 import { PaymentDialog } from '@/pos/PaymentDialog'
 import { ServiceDialog } from '@/pos/ServiceDialog'
 import { SaleInfoDialog, DiscountDialog, ClearCartDialog, ClearSavedCartsDialog, QtyDialog, StockDialog, SaveCartDialog } from '@/pos/PosDialogs'
@@ -205,15 +205,26 @@ function PosScreen() {
   /** Harga part diperbarui ke harga terbaru di master; dilewati selama salinan produk belum termuat. */
   const refresh = (k: Cart) => (products.length ? refreshPrices(k, productMap) : k)
 
-  /** Buka keranjang: layar yang masih berisi barang ditambahkan ke keranjang dulu (R63). */
+  /**
+   * Buka keranjang: layar yang masih berisi barang ditambahkan ke keranjang dulu (R63). Isian yang berasal dari
+   * keranjang yang dibuka langsung dikembalikan dengan keterangannya, tanpa ditanya lagi.
+   */
   const openSaved = (id: string) => {
+    let returned: string | null = null
     if (currentDraft().lines.length > 0) {
-      setDialog({ kind: 'save', thenOpen: id })
-      return
+      returned = reopenedDescription(useCart.getState())
+      if (returned === null) {
+        setDialog({ kind: 'save', thenOpen: id })
+        return
+      }
+      save(returned)
     }
     const label = useCart.getState().saved.find((k) => k.id === id)?.data.description
     open(id, refresh)
-    setNotice({ tone: 'info', text: `Keranjang ${label} dibuka. Tambah barang lalu Bayar, atau Tambah ke keranjang lagi.` })
+    setNotice({
+      tone: 'info',
+      text: `${returned ? `Keranjang ${returned} disimpan lagi. ` : ''}Keranjang ${label} dibuka. Tambah barang lalu Bayar, atau Tambah ke keranjang lagi.`,
+    })
     setQuery('')
     closeDialog()
   }

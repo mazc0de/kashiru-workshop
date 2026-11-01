@@ -47,6 +47,17 @@ export function descriptionError(s: CartsState, text: string): string | null {
   return null
 }
 
+/**
+ * Keterangan untuk mengembalikan isian layar ke keranjang tanpa bertanya lagi saat pindah ke keranjang lain:
+ * hanya kalau isian berasal dari keranjang yang dibuka dan keterangannya masih boleh dipakai. Selain itu null,
+ * jadi kasir diminta mengisi keterangan.
+ */
+export function reopenedDescription(s: CartsState): string | null {
+  if (!s.draft.fromCart || s.draft.lines.length === 0) return null
+  const text = tidyDescription(s.draft.data.description)
+  return descriptionError(s, text) === null ? text : null
+}
+
 /** Daftar keranjang di modal dan angka di ikon, urut waktu isiannya mulai dibuat. */
 export function listedCarts(s: CartsState): SavedCart[] {
   return [...s.saved].sort((x, y) => x.createdAt.localeCompare(y.createdAt))
