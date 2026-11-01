@@ -149,7 +149,7 @@ Fungsi ini dipakai untuk membuat akun, membuat password baru, dan menonaktifkan 
 ```bash
 npm install
 cp .env.example .env   # isi URL dan publishable key Supabase
-npm run dev            # http://localhost:5173
+npm run dev            # http://localhost:6699
 ```
 
 Untuk mencoba build produksi (termasuk PWA/offline):
