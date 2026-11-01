@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Eye, EyeOff } from 'lucide-react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { z } from 'zod'
 
@@ -34,6 +35,7 @@ export function LoginPage() {
   const location = useLocation()
   const destination = (location.state as { from?: string } | null)?.from ?? '/'
   const [serverError, setServerError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   const form = useForm<LoginValues>({ resolver: zodResolver(schema), defaultValues: { email: '', password: '' } })
   const { errors, isSubmitting } = form.formState
@@ -82,13 +84,28 @@ export function LoginPage() {
             />
           </Field>
           <Field id="password" label="Password" error={errors.password?.message}>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              aria-invalid={Boolean(errors.password)}
-              {...form.register('password')}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                className="pr-11"
+                aria-invalid={Boolean(errors.password)}
+                {...form.register('password')}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute inset-y-0 right-0 text-muted-foreground"
+                aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                aria-pressed={showPassword}
+                aria-controls="password"
+                onClick={() => setShowPassword((s) => !s)}
+              >
+                {showPassword ? <EyeOff className="size-4" strokeWidth={1.75} /> : <Eye className="size-4" strokeWidth={1.75} />}
+              </Button>
+            </div>
           </Field>
           {serverError && <Notice tone="error">{serverError}</Notice>}
           <Button type="submit" size="lg" className="mt-2 w-full" disabled={isSubmitting || !online}>
