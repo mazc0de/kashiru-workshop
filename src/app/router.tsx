@@ -143,7 +143,6 @@ export const router = createBrowserRouter([
           { path: 'scanner', lazy: async () => ({ Component: (await import('@/settings/ScannerPage')).ScannerPage }) },
           { path: 'backup', lazy: async () => ({ Component: (await import('@/settings/BackupPage')).BackupPage }) },
           { path: 'accounts', lazy: async () => ({ Component: (await import('@/settings/AccountsPage')).AccountsPage }) },
-          { path: 'security', lazy: async () => ({ Component: (await import('@/settings/SecurityPage')).SecurityPage }) },
           ...(
             [
               ['categories', 'category'],

@@ -41,7 +41,7 @@ Satu instalasi untuk satu bengkel: satu project Supabase dan satu alamat aplikas
 | **Dashboard** | Omzet hari ini (part/jasa), jumlah nota dan kendaraan, grafik 30 hari, jumlah part Menipis/Habis/Minus, pengingat backup |
 | **Laporan** | Penjualan, Jasa per mekanik, Riwayat servis per nopol, Stok (stok per part, slow/fast-moving), Penerimaan, Opname. Filter periode, ekspor Excel dan PDF |
 | **Riwayat perubahan** | Semua perubahan data (harga, produk, void, penyesuaian, opname, akun, pengaturan), filter akun/periode/jenis aksi, tidak bisa diedit atau dihapus |
-| **Pengaturan** | Profil bengkel + logo, awalan nomor dokumen, ukuran kertas 58/80 mm, blind count opname, panduan dan uji scanner, backup manual, akun, logout otomatis, kategori, mekanik |
+| **Pengaturan** | Profil bengkel + logo, awalan nomor dokumen, ukuran kertas 58/80 mm, blind count opname, panduan dan uji scanner, backup manual, akun, kategori, mekanik |
 
 Tampilan laptop dan HP: Dashboard, Riwayat nota, Status stok, Laporan, dan Riwayat perubahan nyaman dibuka di HP pemilik. Layar lain dirancang untuk laptop.
 
@@ -234,7 +234,7 @@ npm run build
 ```
 src/
   app/          shell aplikasi, navigasi, router, status sinkron
-  auth/         layar masuk, sesi, logout otomatis
+  auth/         layar masuk, sesi, keluar
   pos/          Kasir, katalog, keranjang, hitungan nota, struk, antrean offline, Riwayat nota
   products/     Produk, barcode, label
   stock/        Status stok, saran belanja, kartu stok, penyesuaian

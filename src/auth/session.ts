@@ -8,7 +8,7 @@ export type Profile = Pick<TableRow<'profiles'>, 'id' | 'email' | 'nama' | 'akti
 
 export type SessionState =
   | { stage: 'loading' }
-  | { stage: 'signedOut'; message: string | null }
+  | { stage: 'signedOut' }
   | { stage: 'signedIn'; profile: Profile }
   | { stage: 'inactive'; email: string }
   | { stage: 'unregistered'; email: string }
@@ -17,7 +17,7 @@ export type SessionState =
 export type SessionValue = {
   status: SessionState
   /** Keluar dari perangkat ini saja (sesi akun di perangkat lain tetap jalan). */
-  signOut: (message?: string) => Promise<void>
+  signOut: () => Promise<void>
   /** Coba muat profil lagi setelah gagal. */
   reload: () => void
 }

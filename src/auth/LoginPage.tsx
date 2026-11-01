@@ -5,7 +5,6 @@ import { Eye, EyeOff } from 'lucide-react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { z } from 'zod'
 
-import { recordActivity } from '@/auth/autoLogout'
 import { useSession } from '@/auth/session'
 import { Field } from '@/components/Field'
 import { Notice } from '@/components/Notice'
@@ -49,12 +48,10 @@ export function LoginPage() {
       setServerError(loginErrorMessage(error.code, error.message))
       return
     }
-    recordActivity()
     void supabase().rpc('touch_last_login')
     navigate(destination, { replace: true })
   })
 
-  const signOutMessage = status.stage === 'signedOut' ? status.message : null
 
   return (
     <main className="flex min-h-dvh items-start justify-center px-4 pt-[12vh] pb-10">
@@ -70,7 +67,6 @@ export function LoginPage() {
             Tidak ada koneksi internet. Masuk butuh internet.
           </Notice>
         )}
-        {signOutMessage && online && <Notice className="mt-4">{signOutMessage}</Notice>}
 
         <form onSubmit={signIn} noValidate className="mt-6 flex flex-col gap-4">
           <Field id="email" label="Email" error={errors.email?.message}>

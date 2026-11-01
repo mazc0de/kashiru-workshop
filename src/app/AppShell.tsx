@@ -1,9 +1,8 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, NavLink, Outlet } from 'react-router'
 import { LogOut, Menu } from 'lucide-react'
 import { cn } from 'cn'
 
-import { DEFAULT_LOGOUT_HOURS, useAutoLogout } from '@/auth/autoLogout'
 import { hasUnsentSales } from '@/auth/clearLocalData'
 import { useProfile, useSession } from '@/auth/session'
 import { useOnline } from '@/lib/online'
@@ -26,17 +25,6 @@ import { SyncStatus } from '@/app/SyncStatus'
  */
 export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const { signOut } = useSession()
-  const settings = useSettings()
-  // Logout menghapus data di laptop, jadi logout otomatis ditunda selama masih ada nota belum terkirim.
-  const autoSignOut = useCallback(
-    (message: string) =>
-      void hasUnsentSales().then((unsent) => {
-        if (!unsent) void signOut(message)
-      }),
-    [signOut],
-  )
-  useAutoLogout(settings.data?.auto_logout_jam ?? DEFAULT_LOGOUT_HOURS, autoSignOut)
   useSync()
 
   return (
@@ -92,7 +80,8 @@ function Brand() {
 }
 
 /**
- * Akun yang login dan tombol Keluar di pojok bawah (PRD 4.1). Tombolnya selalu bisa diklik dan membuka
+ * Akun yang login dan tombol Keluar di pojok bawah (PRD 4.1). Tanpa logout otomatis: akun tetap masuk sampai
+ * tombol ini diklik. Tombolnya selalu bisa diklik dan membuka
  * dialog: keluar butuh internet (masuk lagi butuh internet) dan ditolak selama masih ada nota belum
  * terkirim, karena keluar menghapus data di laptop.
  */

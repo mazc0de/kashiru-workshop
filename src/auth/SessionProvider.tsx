@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import type { Session } from '@supabase/supabase-js'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { forgetActivity } from '@/auth/autoLogout'
 import { clearLocalData } from '@/auth/clearLocalData'
 import { SessionContext, forgetProfile, loadProfile, storedProfile, type SessionValue, type SessionState } from '@/auth/session'
 import { storedSession, supabase } from '@/lib/supabase'
@@ -12,7 +11,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // undefined = sesi belum diketahui. Sesi tersimpan langsung dipakai supaya aplikasi tidak menunggu
   // Supabase Auth memperpanjang token, yang saat offline baru menyerah setelah ±30 detik (PRD 4.13).
   const [session, setSession] = useState<Session | null | undefined>(() => storedSession() ?? undefined)
-  const [signOutMessage, setSignOutMessage] = useState<string | null>(null)
 
   useEffect(() => {
     const { data } = supabase().auth.onAuthStateChange((event, newSession) => {
@@ -37,11 +35,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   })
 
   const signOut = useCallback(
-    async (message?: string) => {
-      setSignOutMessage(message ?? null)
+    async () => {
       await supabase().auth.signOut({ scope: 'local' })
       forgetProfile()
-      forgetActivity()
       await clearLocalData()
       queryClient.clear()
     },
@@ -50,7 +46,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const status = useMemo<SessionState>(() => {
     if (session === undefined) return { stage: 'loading' }
-    if (session === null) return { stage: 'signedOut', message: signOutMessage }
+    if (session === null) return { stage: 'signedOut' }
     if (profile.isPending) return { stage: 'loading' }
     // Server tidak terjangkau dan belum ada salinan profil di perangkat ini.
     if (profile.isError) return { stage: 'error', message: 'Akun tidak bisa dimuat. Periksa internet lalu coba lagi.' }
@@ -58,7 +54,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!profile.data) return { stage: 'unregistered', email }
     if (!profile.data.aktif) return { stage: 'inactive', email }
     return { stage: 'signedIn', profile: profile.data }
-  }, [session, signOutMessage, profile.isPending, profile.isError, profile.data])
+  }, [session, profile.isPending, profile.isError, profile.data])
 
   const { refetch } = profile
   const reload = useCallback(() => void refetch(), [refetch])

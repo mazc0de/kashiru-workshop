@@ -3,9 +3,9 @@ import { useCart } from '@/pos/cartStore'
 import { initialCarts } from '@/pos/openCarts'
 
 // Saat logout, data di laptop ikut dihapus: isian layar Kasir, semua keranjang, salinan produk/mekanik/nopol,
-// struk terakhir, profil, pengaturan, logo, dan waktu aktivitas. Yang dipertahankan hanya identitas laptop,
+// struk terakhir, profil, pengaturan, dan logo. Yang dipertahankan hanya identitas laptop,
 // bukan data akun:
-// - antrean nota yang belum terkirim (Keluar dan logout otomatis menunggu antrean kosong, lihat
+// - antrean nota yang belum terkirim (tombol Keluar menunggu antrean kosong, lihat
 //   hasUnsentSales; yang tersisa hanya dari "Masuk dengan akun lain" dan dikirim setelah login lagi),
 // - device_id, supaya nota tetap tercatat dari laptop yang sama,
 // - nomor urut nota hari ini, supaya nota pertama setelah login saat offline tidak memakai nomor yang sudah ada.

@@ -12,7 +12,6 @@ const SECTIONS = [
   { path: 'scanner', title: 'Scanner' },
   { path: 'backup', title: 'Backup' },
   { path: 'accounts', title: 'Akun', group: 'Akun' },
-  { path: 'security', title: 'Keamanan' },
   { path: 'categories', title: 'Kategori', group: 'Data master' },
   { path: 'mechanics', title: 'Mekanik' },
 ] as const
