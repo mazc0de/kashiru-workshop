@@ -274,6 +274,7 @@ function PosScreen() {
     <div className="flex h-[calc(100dvh-4.5rem)] flex-col gap-4">
       <header className="flex items-center gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Kasir</h1>
+        {cart.fromCart && <ActiveCartLabel data={cart.data} />}
         {!online && <span className="text-sm text-muted-foreground">Offline: nota disimpan di laptop dan dikirim otomatis saat online.</span>}
         <CartsButton count={listed.length} open={() => setDialog({ kind: 'carts' })} />
       </header>
@@ -495,6 +496,19 @@ function PosScreen() {
 }
 
 /** Ikon keranjang di kanan atas (R61), dengan angka jumlah keranjang yang ditunda seperti di marketplace. */
+/** Penanda keranjang yang sedang dibuka di layar: keterangan, lalu nopol dan nama pelanggan kalau ada. */
+function ActiveCartLabel({ data }: { data: { description: string; plate: string; customer: string } }) {
+  const [name, ...rest] = [data.description, data.plate, data.customer].map(tidyDescription).filter(Boolean)
+  if (!name) return null
+  return (
+    <span className="flex min-w-0 items-baseline gap-2 rounded-md border border-border px-3 py-1" title={[name, ...rest].join(' · ')}>
+      <span className="shrink-0 text-sm text-muted-foreground">Keranjang</span>
+      <span className="truncate font-medium">{name}</span>
+      {rest.length > 0 && <span className="truncate text-sm text-muted-foreground">{rest.join(' · ')}</span>}
+    </span>
+  )
+}
+
 function CartsButton({ count, open }: { count: number; open: () => void }) {
   return (
     <Button variant="outline" size="icon" className="relative ml-auto size-11" aria-label={`Keranjang, ${count} motor menunggu`} title="Keranjang" onClick={open}>
