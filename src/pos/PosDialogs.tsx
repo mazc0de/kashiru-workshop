@@ -367,6 +367,28 @@ export function ClearCartDialog({ count, fromCart, clear, cancel }: { count: num
   )
 }
 
+/** Tombol hapus di penanda keranjang aktif: keranjang yang sedang dibuka di layar dibuang setelah konfirmasi. */
+export function DeleteActiveCartDialog({ name, count, remove, cancel }: { name: string; count: number; remove: () => void; cancel: () => void }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <DialogHeader>
+        <DialogTitle>Hapus keranjang {name}?</DialogTitle>
+        <DialogDescription>
+          {count > 0 ? `${count} baris di keranjang ini dibuang tanpa dibayar.` : 'Keranjang ini dibuang.'} Keranjang lain tidak berubah.
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button variant="outline" onClick={cancel}>
+          Batal
+        </Button>
+        <Button variant="destructive" autoFocus onClick={remove}>
+          Hapus keranjang
+        </Button>
+      </DialogFooter>
+    </div>
+  )
+}
+
 /** Tombol Bersihkan keranjang di modal Keranjang: semua keranjang yang ditunda dibuang setelah konfirmasi. */
 export function ClearSavedCartsDialog({ count, clear, cancel }: { count: number; clear: () => void; cancel: () => void }) {
   return (
