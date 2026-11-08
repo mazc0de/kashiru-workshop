@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import { ConfigMissing } from '@/app/ConfigMissing'
 import { router } from '@/app/router'
+import { UpdatePrompt } from '@/app/UpdatePrompt'
 import { SessionProvider } from '@/auth/SessionProvider'
 import { readEnv } from '@/lib/env'
 import { migrateLocalStorage } from '@/lib/localMigration'
@@ -33,5 +34,6 @@ root.render(
     ) : (
       <ConfigMissing short={env.short} />
     )}
+    <UpdatePrompt />
   </StrictMode>,
 )

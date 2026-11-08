@@ -11,8 +11,10 @@ export default defineConfig({
     tailwindcss(),
     // PWA supaya aplikasi tetap terbuka walaupun di-refresh saat offline (PRD 4.13). Semua potongan
     // layar ikut di-precache, jadi layar yang belum pernah dibuka pun tetap terbuka saat offline.
+    // Mode 'prompt': versi baru menunggu kasir menekan "Muat ulang" di banner (src/app/UpdatePrompt.tsx).
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: false,
       pwaAssets: { image: 'public/logo.svg', preset: 'minimal-2023', overrideManifestIcons: true },
       manifest: {
         name: 'Kashiru',
