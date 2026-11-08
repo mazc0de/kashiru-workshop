@@ -23,6 +23,8 @@ export async function print(content: ReactNode, width: PaperWidth): Promise<void
   const root = createRoot(container)
   flushSync(() => root.render(content))
   await document.fonts.ready
+  // Gambar (struk, logo) harus sudah siap sebelum dicetak; kalau belum, kertas keluar kosong.
+  await Promise.all(Array.from(container.querySelectorAll('img'), (img) => img.decode().catch(() => undefined)))
 
   await new Promise<void>((resolve) => {
     let done = false

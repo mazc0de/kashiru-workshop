@@ -1,4 +1,5 @@
 import { db, withLock } from '@/lib/localCopy'
+import { RECEIPT_FONT_KEY } from '@/lib/receiptFont'
 import { useCart } from '@/pos/cartStore'
 import { initialCarts } from '@/pos/openCarts'
 
@@ -8,10 +9,11 @@ import { initialCarts } from '@/pos/openCarts'
 // - antrean nota yang belum terkirim (tombol Keluar menunggu antrean kosong, lihat
 //   hasUnsentSales; yang tersisa hanya dari "Masuk dengan akun lain" dan dikirim setelah login lagi),
 // - device_id, supaya nota tetap tercatat dari laptop yang sama,
-// - nomor urut nota hari ini, supaya nota pertama setelah login saat offline tidak memakai nomor yang sudah ada.
+// - nomor urut nota hari ini, supaya nota pertama setelah login saat offline tidak memakai nomor yang sudah ada,
+// - huruf struk, karena itu pengaturan printer di laptop ini, bukan data akun.
 
 const LOCAL_KEY_PREFIX = 'kashiru.'
-const KEPT_LOCAL_KEYS = new Set(['kashiru.saleSequence'])
+const KEPT_LOCAL_KEYS = new Set(['kashiru.saleSequence', RECEIPT_FONT_KEY])
 const KEPT_METADATA_KEYS = ['device_id']
 
 /** Ada nota yang belum atau gagal terkirim di laptop ini. */

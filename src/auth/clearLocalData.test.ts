@@ -26,9 +26,9 @@ beforeEach(async () => {
   await Promise.all(db.tables.map((t) => t.clear()))
 })
 
-test('logout menghapus keranjang, salinan, dan isian di laptop; identitas laptop dan antrean nota tetap', async () => {
+test('logout menghapus keranjang, salinan, dan isian di laptop; identitas laptop, huruf struk, dan antrean nota tetap', async () => {
   useCart.setState({ saved: [{ ...useCart.getState().draft, id: 'a', createdAt: 'x' }] })
-  for (const k of ['kashiru.cart', 'kashiru.profile', 'kashiru.settings', 'kashiru.logo', 'kashiru.saleSequence']) values.set(k, '{}')
+  for (const k of ['kashiru.cart', 'kashiru.profile', 'kashiru.settings', 'kashiru.logo', 'kashiru.saleSequence', 'kashiru.receiptFont']) values.set(k, '{}')
   values.set('lain', '1')
   await db.products.put({ id: 'p' } as never)
   await db.mechanics.put({ id: 'm', name: 'Budi' })
@@ -43,7 +43,7 @@ test('logout menghapus keranjang, salinan, dan isian di laptop; identitas laptop
   await clearLocalData()
 
   expect(useCart.getState().saved).toEqual([])
-  expect([...values.keys()].sort()).toEqual(['kashiru.saleSequence', 'lain'])
+  expect([...values.keys()].sort()).toEqual(['kashiru.receiptFont', 'kashiru.saleSequence', 'lain'])
   expect(await db.products.count()).toBe(0)
   expect(await db.mechanics.count()).toBe(0)
   expect(await db.plates.count()).toBe(0)

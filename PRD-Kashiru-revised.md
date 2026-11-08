@@ -273,8 +273,9 @@ BTP-3050 adalah printer thermal ESC/POS yang mendukung kertas 80mm dan 58mm, 203
 | 80mm (default) | 72mm | 576 | 48 |
 
 - **Ukuran kertas dipilih sekali di Pengaturan** (58 atau 80mm, default 80mm). Semua cetakan mengikuti pengaturan itu: struk, label barcode, lembar hitung, saran belanja, dan ringkasan harian.
-- **Jalur cetak** adalah driver Windows + `window.print()`. Template struk berupa HTML dengan CSS `@page { size: 80mm auto }` atau `58mm auto`. Chrome dijalankan dengan flag `--kiosk-printing` supaya tidak muncul dialog cetak. Auto cut diatur di driver.
-- **Pengaturan cetak**: ukuran kertas dan jumlah salinan (default 1).
+- **Jalur cetak** adalah driver Windows + `window.print()` dengan CSS `@page { size: 80mm auto }` atau `58mm auto`. Chrome dijalankan dengan flag `--kiosk-printing` supaya tidak muncul dialog cetak. Auto cut diatur di driver.
+- **Struk dan lembar teks dicetak sebagai gambar hitam-putih** seukuran titik printer (576 dot untuk 80mm, 384 dot untuk 58mm), bukan teks HTML. Teks HTML dari Chrome tercetak putus-putus di printer thermal karena hurufnya dikirim tanpa hinting, sedangkan gambar yang sudah tepat satu piksel per titik tidak diubah lagi oleh driver. Label barcode tetap HTML.
+- **Pengaturan cetak**: ukuran kertas, jumlah salinan (default 1), dan huruf struk (Courier New atau Times New Roman, default Courier New). Huruf struk disimpan per laptop, bukan di server, dan tetap ada setelah logout. Dengan huruf proporsional, nama barang dibungkus menurut lebar hurufnya, angka tetap rata kanan, dan judul tetap di tengah. Lembar hitung, saran belanja, dan ringkasan harian selalu Courier New karena berupa tabel.
 - **Cetak ulang** dari riwayat nota, dengan tanda **"SALINAN"**.
 - Kalau printer bermasalah, nota tetap tersimpan dan bisa dicetak ulang setelah printer normal. Tidak ada struk digital.
 - **Isi struk** (baris yang kosong tidak dicetak). Baris `Ket` berasal dari keranjang di laptop dan hanya ada di struk yang dicetak saat bayar dan di cetak ulang struk terakhir dari layar Kasir (R62):
@@ -384,7 +385,7 @@ Detail keputusan ada di [ADR 0002](./docs/adr/0002-offline-sales-only.md).
 
 - **Profil bengkel**: nama, alamat, telepon, logo (monokrom), dan teks footer struk.
 - **Nomor dokumen**: awalan nota (default `KSR`), penerimaan (default `TRM`), dan opname (default `OPN`) bisa diubah. Format nomornya `{AWALAN}-{YYYYMMDD}-{URUT}`, dengan urut 4 digit untuk nota dan penerimaan, 2 digit untuk opname, dan mulai dari awal setiap hari. Kalau urut melewati batas digit, nomornya otomatis bertambah satu digit.
-- **Cetak**: ukuran kertas (58/80mm) dan jumlah salinan.
+- **Cetak**: ukuran kertas (58/80mm), jumlah salinan, dan huruf struk (per laptop, dengan pratinjau).
 - **Opname**: blind count aktif/nonaktif.
 - **Data master**: akun, kategori, dan mekanik (nama, aktif). Kategori dan mekanik juga bisa dibuat langsung dari isiannya di form. Supplier dihapus (R52). Yang nonaktif tidak muncul lagi di pilihan.
 - **Scanner**: setelan DS2208 dengan rujukan ke panduan resmi Zebra, dan uji scan (R49).

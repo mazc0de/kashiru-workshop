@@ -6,10 +6,12 @@ import { Notice } from '@/components/Notice'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { printReceipt } from '@/pos/printReceipt'
+import { ReceiptSheet } from '@/pos/ReceiptSheet'
 import { formatSaleNumber, wibDate } from '@/pos/saleNumber'
 import { sampleReceipt } from '@/pos/receipt'
 import { useLogo } from '@/lib/logo'
 import { useOnline } from '@/lib/online'
+import { RECEIPT_FONTS, readReceiptFont, saveReceiptFont, type ReceiptFont } from '@/lib/receiptFont'
 import { useSettings, type Settings } from '@/lib/settings'
 import { useSaveSettings } from '@/settings/saveSettings'
 
@@ -93,6 +95,8 @@ function PrintPanel({ p }: { p: Settings }) {
   const n = Number(copies)
   const copiesValid = Number.isInteger(n) && n >= 1 && n <= 5
   const width = p.ukuran_kertas === 58 ? 58 : 80
+  const [font, setFont] = useState<ReceiptFont>(readReceiptFont)
+  const sample = sampleReceipt({ name: p.nama_bengkel, address: p.alamat, phone: p.telepon, footer: p.footer_struk })
 
   return (
     <>
@@ -124,6 +128,35 @@ function PrintPanel({ p }: { p: Settings }) {
             ))}
           </div>
         </div>
+        <div>
+          <span className="block text-sm font-medium" id="label-font">
+            Huruf struk
+          </span>
+          <div role="radiogroup" aria-labelledby="label-font" className="mt-2 inline-flex h-11 rounded-md border border-input bg-card p-1">
+            {RECEIPT_FONTS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                role="radio"
+                aria-checked={font.id === f.id}
+                onClick={() => {
+                  saveReceiptFont(f.id)
+                  setFont(f)
+                }}
+                className={cn('rounded-sm px-4 text-[15px] text-muted-foreground', font.id === f.id && 'bg-active text-foreground')}
+                style={{ fontFamily: f.family }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Disimpan di laptop ini saja. Lembar hitung opname, saran belanja, dan ringkasan harian tetap memakai Courier New supaya kolomnya lurus.
+          </p>
+          <div className="mt-3 inline-block rounded-md border border-border bg-white p-3 shadow-sm">
+            <ReceiptSheet data={sample} width={width} logo={logo} font={font} />
+          </div>
+        </div>
         <form
           noValidate
           className="flex flex-wrap items-start gap-3"
@@ -150,18 +183,11 @@ function PrintPanel({ p }: { p: Settings }) {
           <Button
             type="button"
             variant="outline"
-            onClick={() =>
-              void printReceipt(
-                sampleReceipt({ name: p.nama_bengkel, address: p.alamat, phone: p.telepon, footer: p.footer_struk }),
-                width,
-                logo,
-                1,
-              )
-            }
+            onClick={() => void printReceipt(sample, width, logo, 1)}
           >
             Cetak contoh struk
           </Button>
-          <p className="mt-2 text-sm text-muted-foreground">Untuk memeriksa lebar kertas dan pemotong otomatis printer.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Untuk memeriksa lebar kertas, huruf, dan pemotong otomatis printer.</p>
         </div>
       </div>
     </>

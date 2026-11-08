@@ -1,44 +1,29 @@
-import type { PaperWidth } from '@/lib/print'
-import { CHARS_PER_LINE, buildReceipt, type ReceiptData } from '@/pos/receipt'
+import { useEffect, useState } from 'react'
 
-/**
- * Struk sebagai teks monospace. Di kertas, 48 karakter tepat mengisi area cetak 72 mm (dan 32 karakter
- * mengisi 48 mm), yaitu 1,5 mm per karakter. Logo opsional dicetak hitam-putih di atas.
- */
-export function ReceiptSheet({
-  data,
-  width,
-  logo,
-  screen = false,
-}: {
-  data: ReceiptData
-  width: PaperWidth
-  logo: string | null
-  /** Pratinjau di layar memakai ukuran huruf layar, bukan milimeter. */
-  screen?: boolean
-}) {
-  const lines = buildReceipt(data, CHARS_PER_LINE[width])
-  return (
-    <div style={{ color: '#000', background: '#fff' }}>
-      {logo && (
-        <img
-          src={logo}
-          alt=""
-          style={{ display: 'block', margin: '0 auto 2mm', maxWidth: screen ? '60%' : '40mm', maxHeight: screen ? '72px' : '18mm', filter: 'grayscale(1) contrast(1.4)' }}
-        />
-      )}
-      <pre
-        style={{
-          margin: 0,
-          fontFamily: '"Courier New", Courier, monospace',
-          // Lebar satu karakter Courier New = 0,6 em, jadi 2,5 mm menghasilkan 1,5 mm per karakter.
-          fontSize: screen ? '12px' : '2.5mm',
-          lineHeight: 1.25,
-          whiteSpace: 'pre',
-        }}
-      >
-        {lines.join('\n')}
-      </pre>
-    </div>
-  )
+import type { PaperWidth } from '@/lib/print'
+import { readReceiptFont, receiptFontById, type ReceiptFont } from '@/lib/receiptFont'
+import { renderReceipt } from '@/pos/printReceipt'
+import type { ReceiptData } from '@/pos/receipt'
+
+/** Lebar pratinjau di layar: 576 / 384 titik printer dikecilkan supaya muat di samping formulir. */
+const PREVIEW_PX: Record<PaperWidth, number> = { 80: 360, 58: 240 }
+
+/** Pratinjau struk di layar: gambar yang sama persis dengan yang dikirim ke printer, termasuk hurufnya. */
+export function ReceiptSheet({ data, width, logo, font }: { data: ReceiptData; width: PaperWidth; logo: string | null; font?: ReceiptFont }) {
+  const [src, setSrc] = useState<string | null>(null)
+  // Isi nota dibandingkan sebagai teks, karena objeknya dibuat ulang setiap render oleh halaman pemanggil.
+  const dataKey = JSON.stringify(data)
+  const fontId = (font ?? readReceiptFont()).id
+  useEffect(() => {
+    let cancelled = false
+    renderReceipt(JSON.parse(dataKey) as ReceiptData, width, logo, receiptFontById(fontId))
+      .then((s) => !cancelled && setSrc(s))
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [dataKey, width, logo, fontId])
+
+  if (!src) return <div style={{ width: PREVIEW_PX[width], height: 480, background: '#fff' }} />
+  return <img src={src} alt="Pratinjau struk" style={{ display: 'block', width: '100%', maxWidth: PREVIEW_PX[width], background: '#fff' }} />
 }

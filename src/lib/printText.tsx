@@ -1,7 +1,7 @@
-import { TextSheet } from '@/components/TextSheet'
-import { print, type PaperWidth } from '@/lib/print'
+import type { PaperWidth } from '@/lib/print'
+import { linesToRows, printImage, renderMonochrome } from '@/lib/printBitmap'
 
-/** Cetak daftar teks (saran belanja, lembar hitung, ringkasan harian) ke printer struk. */
-export function printText(lines: string[], width: PaperWidth): Promise<void> {
-  return print(<TextSheet lines={lines} />, width)
+/** Cetak daftar teks (saran belanja, lembar hitung, ringkasan harian) ke printer struk, selalu Courier New. */
+export async function printText(lines: string[], width: PaperWidth): Promise<void> {
+  await printImage(await renderMonochrome(linesToRows(lines), width), width)
 }

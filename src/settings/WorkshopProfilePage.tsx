@@ -138,7 +138,6 @@ function WorkshopProfileForm({ p }: { p: Settings }) {
           <figcaption className="mb-2 text-sm text-muted-foreground">Pratinjau struk {width} mm</figcaption>
           <div className="rounded-md border border-border bg-white p-4 shadow-sm">
             <ReceiptSheet
-              screen
               width={width}
               logo={logo}
               data={sampleReceipt({ name: values.name || 'Nama bengkel', address: values.address || null, phone: values.phone || null, footer: values.footer || null })}
