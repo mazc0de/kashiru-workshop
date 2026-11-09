@@ -38,6 +38,26 @@ export function thresholdToMonochrome(rgba: Uint8ClampedArray, threshold = INK_T
   }
 }
 
+/**
+ * Teks: setiap titik hitam juga menghitamkan titik di kanan dan di bawahnya, jadi garis huruf minimal
+ * 2 titik tebalnya. Garis 1 titik putus-putus di kertas kalau Chrome atau driver menskalakan gambar
+ * ke resolusi printer yang tidak persis 203 dpi. Data RGBA (sudah hitam-putih) diubah langsung.
+ */
+export function thickenStrokes(rgba: Uint8ClampedArray, width: number, height: number): void {
+  const black = new Uint8Array(width * height)
+  for (let p = 0; p < black.length; p++) black[p] = rgba[p * 4] === 0 ? 1 : 0
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const p = y * width + x
+      const ink = black[p] || (x > 0 && black[p - 1]) || (y > 0 && black[p - width]) || (x > 0 && y > 0 && black[p - width - 1])
+      if (!ink) continue
+      const i = p * 4
+      rgba[i] = rgba[i + 1] = rgba[i + 2] = 0
+      rgba[i + 3] = 255
+    }
+  }
+}
+
 /** Logo: abu-abu dijadikan pola titik hitam-putih (Floyd–Steinberg) supaya gradasinya tetap terlihat. */
 export function ditherToMonochrome(rgba: Uint8ClampedArray, width: number, height: number): void {
   const gray = new Float32Array(width * height)
@@ -147,6 +167,7 @@ export async function renderMonochrome(
     })
     const area = ctx.getImageData(0, textTop, canvasWidth, canvas.height - textTop)
     thresholdToMonochrome(area.data)
+    thickenStrokes(area.data, area.width, area.height)
     ctx.putImageData(area, 0, textTop)
   }
 

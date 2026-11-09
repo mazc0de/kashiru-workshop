@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { ditherToMonochrome, thresholdToMonochrome } from '@/lib/printBitmap'
+import { ditherToMonochrome, thickenStrokes, thresholdToMonochrome } from '@/lib/printBitmap'
 
 const pixels = (...grays: number[]) => new Uint8ClampedArray(grays.flatMap((g) => [g, g, g, 255]))
 const grays = (rgba: Uint8ClampedArray) => Array.from({ length: rgba.length / 4 }, (_, p) => rgba[p * 4])
@@ -15,6 +15,21 @@ describe('thresholdToMonochrome', () => {
     const rgba = new Uint8ClampedArray([30, 200, 90, 10])
     thresholdToMonochrome(rgba)
     expect(Array.from(rgba)).toEqual([0, 0, 0, 255])
+  })
+})
+
+describe('thickenStrokes', () => {
+  test('garis 1 titik menjadi 2 titik ke kanan dan ke bawah', () => {
+    // 3 × 3, satu titik hitam di tengah.
+    const rgba = pixels(255, 255, 255, 255, 0, 255, 255, 255, 255)
+    thickenStrokes(rgba, 3, 3)
+    expect(grays(rgba)).toEqual([255, 255, 255, 255, 0, 0, 255, 0, 0])
+  })
+
+  test('kertas putih tetap putih', () => {
+    const rgba = pixels(255, 255, 255, 255)
+    thickenStrokes(rgba, 2, 2)
+    expect(grays(rgba)).toEqual([255, 255, 255, 255])
   })
 })
 
